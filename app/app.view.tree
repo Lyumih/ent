@@ -1,0 +1,16 @@
+$ent_app $mol_page
+	title \CRUS - Энтропия
+	realm $hyoo_crus_realm
+	foot /
+		<= Crus_status $hyoo_crus_status
+			realm <= realm
+	body /
+		- Записать поле, прочитать поле, обновить поле, удалить поле (туду).
+		<= Input $mol_string 
+			value? <=> input? null
+		<= Send $mol_button_major
+			title \Оправить
+			click? <=> send? null
+		<= Read $mol_button_major
+			title \Прочитать (загрузить)
+			click? <=> read? null
