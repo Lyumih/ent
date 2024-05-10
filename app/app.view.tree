@@ -1,11 +1,18 @@
 $ent_app $mol_page
-	title \CRUS - Энтропия
+	title \CRUS - Энтропия ToDo
 	realm $hyoo_crus_realm
 	foot /
+		<= Source $mol_link_source
+			uri \https://github.com/hyoo-ru/crus.hyoo.ru
 		<= Crus_status $hyoo_crus_status
 			realm <= realm
 	body /
-		- Записать поле, прочитать поле, обновить поле, удалить поле (туду).
+		<= Username_labeler $mol_labeler
+			title \Пользователь
+			content / <= Username $mol_string value? <=> username? \
+		<= Check_user $mol_button_minor
+			title \Проверить пользователя и имя
+			click? <=> check_user? null
 		<= Input $mol_string 
 			value? <=> input? null
 		<= Send $mol_button_major
