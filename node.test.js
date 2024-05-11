@@ -12323,7 +12323,7 @@ var $;
                 console.log('check_user', this.user()?.Username()?.val(), this.user());
             }
             username(next) {
-                return this.user()?.Username()?.val(next) ?? '';
+                return this.user()?.Username(next)?.val(next) ?? '';
             }
         }
         __decorate([
