@@ -23,5 +23,20 @@ namespace $.$$ {
 		username( next?: string | undefined ): string {
 			return this.user()?.Username(next)?.val( next ) ?? ''
 		}
+
+		user_id(): string {
+			return this.user()?.ref()?.description ?? ''
+		}
+
+		add( next?: any ) {
+			console.log( 'add', next, this.input() )
+			this.user()?.add_todo( this.input() )
+			console.log('todos', this.user()?.Todos())
+		}
+
+		check_todos( next?: any ) {
+			console.log( 'check_todos', this.user()?.Todos() )
+			console.log( 'check_todos list', this.user()?.Todos()?.remote_list() )
+		}
 	}
 }
