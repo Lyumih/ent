@@ -12340,14 +12340,14 @@ var $;
                 console.log('user!');
                 return this.realm().home().hall_by($ent_app_user, $hyoo_crus_rank_public);
             }
+            user_id() {
+                return 'User_id ' + this.user()?.ref()?.description ?? '';
+            }
             check_user(next) {
                 console.log('check_user', this.user()?.Username()?.val(), this.user());
             }
             username(next) {
                 return this.user()?.Username(next)?.val(next) ?? '';
-            }
-            user_id() {
-                return this.user()?.ref()?.description ?? '';
             }
             add(next) {
                 console.log('add', next, this.input());
