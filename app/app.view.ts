@@ -16,6 +16,10 @@ namespace $.$$ {
 			return this.realm().home().hall_by( $ent_app_user, $hyoo_crus_rank_public )
 		}
 
+		user_id(): string {
+			return 'User_id '+ this.user()?.ref()?.description ?? ''
+		}
+
 		check_user( next?: any ) {
 			console.log( 'check_user', this.user()?.Username()?.val(), this.user() )
 		}
@@ -24,9 +28,6 @@ namespace $.$$ {
 			return this.user()?.Username(next)?.val( next ) ?? ''
 		}
 
-		user_id(): string {
-			return this.user()?.ref()?.description ?? ''
-		}
 
 		add( next?: any ) {
 			console.log( 'add', next, this.input() )
