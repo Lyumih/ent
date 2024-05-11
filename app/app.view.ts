@@ -21,7 +21,7 @@ namespace $.$$ {
 		}
 
 		username( next?: string | undefined ): string {
-			return this.user()?.Username()?.val( next ) ?? ''
+			return this.user()?.Username(next)?.val( next ) ?? ''
 		}
 	}
 }
