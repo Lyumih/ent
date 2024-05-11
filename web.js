@@ -12192,6 +12192,20 @@ var $;
 "use strict";
 
 ;
+	($.$mol_row) = class $mol_row extends ($.$mol_view) {};
+
+
+;
+"use strict";
+var $;
+(function ($) {
+    $mol_style_attach("mol/row/row.view.css", "[mol_row] {\n\tdisplay: flex;\n\tflex-wrap: wrap;\n\talign-items: flex-start;\n\talign-content: flex-start;\n\tjustify-content: flex-start;\n\tpadding: var(--mol_gap_block);\n\tgap: var(--mol_gap_block);\n\tflex: 0 0 auto;\n\tbox-sizing: border-box;\n\tmax-width: 100%;\n}\n\n[mol_row] > * {\n\tmax-width: 100%;\n}\n");
+})($ || ($ = {}));
+
+;
+"use strict";
+
+;
 	($.$mol_button_major) = class $mol_button_major extends ($.$mol_button_minor) {
 		theme(){
 			return "$mol_theme_base";
@@ -12263,6 +12277,29 @@ var $;
 			(obj.value) = (next) => ((this.input(next)));
 			return obj;
 		}
+		todo(id, next){
+			if(next !== undefined) return next;
+			return " ";
+		}
+		Todo_name(id){
+			const obj = new this.$.$mol_string();
+			(obj.hint) = () => ("Todo");
+			(obj.value) = (next) => ((this.todo(id, next)));
+			return obj;
+		}
+		Todo(id){
+			const obj = new this.$.$mol_row();
+			(obj.sub) = () => ([(this.Todo_name(id))]);
+			return obj;
+		}
+		todo_list(){
+			return [(this.Todo("0"))];
+		}
+		Todo_list(){
+			const obj = new this.$.$mol_list();
+			(obj.rows) = () => ((this.todo_list()));
+			return obj;
+		}
 		add(next){
 			if(next !== undefined) return next;
 			return null;
@@ -12299,6 +12336,7 @@ var $;
 				(this.Username_labeler()), 
 				(this.Check_user()), 
 				(this.Input()), 
+				(this.Todo_list()), 
 				(this.Add()), 
 				(this.Check_todo())
 			];
@@ -12314,6 +12352,10 @@ var $;
 	($mol_mem(($.$ent_app.prototype), "Check_user"));
 	($mol_mem(($.$ent_app.prototype), "input"));
 	($mol_mem(($.$ent_app.prototype), "Input"));
+	($mol_mem_key(($.$ent_app.prototype), "todo"));
+	($mol_mem_key(($.$ent_app.prototype), "Todo_name"));
+	($mol_mem_key(($.$ent_app.prototype), "Todo"));
+	($mol_mem(($.$ent_app.prototype), "Todo_list"));
 	($mol_mem(($.$ent_app.prototype), "add"));
 	($mol_mem(($.$ent_app.prototype), "Add"));
 	($mol_mem(($.$ent_app.prototype), "check_todos"));
@@ -12391,18 +12433,32 @@ var $;
                 return this.realm().home().hall_by($ent_app_user, $hyoo_crus_rank_public);
             }
             user_id() {
-                return 'User_id ' + this.user()?.ref()?.description ?? '';
+                return 'User_id ' + this.user()?.ref().description ?? '';
             }
             check_user(next) {
                 console.log('check_user', this.user()?.Username()?.val(), this.user());
             }
             username(next) {
+                console.log(this.user()?.Username());
                 return this.user()?.Username(next)?.val(next) ?? '';
             }
             add(next) {
                 console.log('add', next, this.input());
                 this.user()?.add_todo(this.input());
                 console.log('todos', this.user()?.Todos());
+            }
+            todo_list() {
+                return this.user()?.Todos()?.remote_list().map(todo => this.Todo(todo.ref())) ?? [];
+            }
+            todo(id, next) {
+                console.log('todo', id, next, this.user()?.Todos()?.find(id));
+                console.log('hyoo_crus_ref', $hyoo_crus_ref(id));
+                const todo_realm = this.realm().Node($hyoo_crus_ref(id), $ent_app_todo);
+                console.log('todo_realm', todo_realm);
+                const todo = this.user()?.Todos()?.remote_list()?.find((todo) => todo.ref() === id);
+                console.log("TODO", todo, todo?.Name(), todo?.Name()?.val());
+                return todo?.Name(next)?.val(next) ?? '';
+                return next;
             }
             check_todos(next) {
                 console.log('check_todos', this.user()?.Todos());
@@ -12412,6 +12468,9 @@ var $;
         __decorate([
             $mol_mem
         ], $ent_app.prototype, "user", null);
+        __decorate([
+            $mol_mem
+        ], $ent_app.prototype, "todo_list", null);
         $$.$ent_app = $ent_app;
     })($$ = $.$$ || ($.$$ = {}));
 })($ || ($ = {}));

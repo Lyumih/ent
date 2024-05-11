@@ -248,6 +248,7 @@
     "$mol_websocket_frame",
     "$mol_websocket",
     "$mol_labeler",
+    "$mol_row",
     "$mol_button_major",
     "$ent_app_user",
     "$hyoo_crus_entity",

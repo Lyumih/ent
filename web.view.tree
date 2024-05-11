@@ -385,6 +385,8 @@ $mol_labeler $mol_list
 			minimal_height 24
 			sub <= content /
 
+$mol_row $mol_view
+
 $mol_button_major $mol_button_minor
 	theme \$mol_theme_base
 
@@ -406,6 +408,11 @@ $ent_app $mol_page
 			click? <=> check_user? null
 		<= Input $mol_string 
 			value? <=> input? null
+		<= Todo_list $mol_list rows <= todo_list /
+			<= Todo*0 $mol_row sub /
+				<= Todo_name* $mol_string
+					hint \Todo
+					value? <=> todo*? \ 
 		<= Add $mol_button_major
 			title \Добавить
 			click? <=> add? null
