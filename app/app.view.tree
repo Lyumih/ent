@@ -20,7 +20,7 @@ $ent_app $mol_page
 			<= Todo*0 $mol_row sub /
 				<= Todo_name* $mol_string
 					hint \Todo
-					value? <=> todo*? \ 
+					value? <=> todo_name*? \ 
 		<= Add $mol_button_major
 			title \Добавить
 			click? <=> add? null

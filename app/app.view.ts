@@ -41,20 +41,13 @@ namespace $.$$ {
 			return this.user()?.Todos()?.remote_list().map( todo => this.Todo(todo.ref()) ) ?? []
 		}
 
-		todo( id: any, next?: any ) {
-			console.log( 'todo', id, next, this.user()?.Todos()?.find( id ) )
-			// console.log( this.user()?.Todos()?.remote_list()?.find( ( todo ) => todo.ref().description === id )?.Name( next ), next )
-			console.log( 'hyoo_crus_ref', $hyoo_crus_ref( id ) )
+		todo( id: string ) {
+			return this.realm().Node( $hyoo_crus_ref( id ), $ent_app_todo )
+		}
 
-			const todo_realm = this.realm().Node( $hyoo_crus_ref( id ), $ent_app_todo )
-			console.log( 'todo_realm', todo_realm )
-			
-			const todo = this.user()?.Todos()?.remote_list()?.find( ( todo ) => todo.ref() === id )
-			console.log( "TODO", todo, todo?.Name(), todo?.Name()?.val() )
-			
-			return todo?.Name( next )?.val(next) ?? ''
-			// return this.user()?.Todos()?.remote_get( id )
-			return next
+		todo_name( id: string, next?: string ) {
+			console.log( 'todo', id, next, this.todo(id) )
+			return this.todo(id).Name( next )?.val( next ) ?? ''
 		}
 
 		check_todos( next?: any ) {
