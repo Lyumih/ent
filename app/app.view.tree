@@ -3,27 +3,31 @@ $ent_app $mol_page
 	realm $hyoo_crus_realm
 	foot /
 		<= Source $mol_link_source
-			uri \https://github.com/hyoo-ru/crus.hyoo.ru
+			uri \https://github.com/Lyumih/ent
 		<= Crus_status $hyoo_crus_status
 			realm <= realm
 	body /
 		<= User_id $mol_paragraph title <= user_id \User id
 		<= Username_labeler $mol_labeler
-			title \Пользователь
+			title \Имя
 			content / <= Username $mol_string value? <=> username? \
-		<= Check_user $mol_button_minor
-			title \Проверить пользователя и имя
-			click? <=> check_user? null
-		<= Input $mol_string 
-			value? <=> input? null
+		<= Todo_create $mol_row sub /
+			<= Todo_new $mol_string 
+				hint \Новая задача
+				value? <=> todo_new? \
+			<= Todo_add $mol_button_major
+				title \Добавить задачу
+				click? <=> todo_add? null
 		<= Todo_list $mol_list rows <= todo_list /
 			<= Todo*0 $mol_row sub /
 				<= Todo_name* $mol_string
 					hint \Todo
-					value? <=> todo_name*? \ 
-		<= Add $mol_button_major
-			title \Добавить
-			click? <=> add? null
-		<= Check_todo $mol_button_major
-			title \Чек todos
-			click? <=> check_todos? null
+					value? <=> todo_name*? \
+				<= Todo_date* $mol_date
+					value_moment? <=> todo_end*? $mol_time_moment|null
+				<= Todo_done* $mol_check_box
+					hint \Завершено
+					checked? <=> todo_done*? false
+				<= Todo_delete* $mol_button_minor
+					click? <=> todo_delete*? null
+					sub / <= Delete_icon* $mol_icon_delete

@@ -6,12 +6,14 @@ namespace $ {
 
 		@$mol_action
 		add_todo(name: string) {
-			console.log( 'add todo', this )
 			const todo = this.Todos( true )?.remote_make( $hyoo_crus_rank_orgy )
-			todo?.Name()?.val( name )
-			todo?.Title()?.val( name )
-			console.log("add_todo", todo)
+			todo?.Name(true)?.val( name )
+			todo?.Title(true)?.val( 'Title' + name )
 			return todo
+		}
+
+		remove_todo( id: $hyoo_crus_ref ) {
+			this.Todos()?.cut( id )
 		}
 	}
 }
