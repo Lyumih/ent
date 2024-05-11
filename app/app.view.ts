@@ -17,7 +17,7 @@ namespace $.$$ {
 		}
 
 		user_id(): string {
-			return 'User_id '+ this.user()?.ref()?.description ?? ''
+			return 'User_id '+ this.user()?.ref().description ?? ''
 		}
 
 		check_user( next?: any ) {
@@ -25,6 +25,7 @@ namespace $.$$ {
 		}
 
 		username( next?: string | undefined ): string {
+			console.log( this.user()?.Username() )
 			return this.user()?.Username(next)?.val( next ) ?? ''
 		}
 
@@ -33,6 +34,27 @@ namespace $.$$ {
 			console.log( 'add', next, this.input() )
 			this.user()?.add_todo( this.input() )
 			console.log('todos', this.user()?.Todos())
+		}
+
+		@$mol_mem
+		todo_list(): readonly any[] {
+			return this.user()?.Todos()?.remote_list().map( todo => this.Todo(todo.ref()) ) ?? []
+		}
+
+		todo( id: any, next?: any ) {
+			console.log( 'todo', id, next, this.user()?.Todos()?.find( id ) )
+			// console.log( this.user()?.Todos()?.remote_list()?.find( ( todo ) => todo.ref().description === id )?.Name( next ), next )
+			console.log( 'hyoo_crus_ref', $hyoo_crus_ref( id ) )
+
+			const todo_realm = this.realm().Node( $hyoo_crus_ref( id ), $ent_app_todo )
+			console.log( 'todo_realm', todo_realm )
+			
+			const todo = this.user()?.Todos()?.remote_list()?.find( ( todo ) => todo.ref() === id )
+			console.log( "TODO", todo, todo?.Name(), todo?.Name()?.val() )
+			
+			return todo?.Name( next )?.val(next) ?? ''
+			// return this.user()?.Todos()?.remote_get( id )
+			return next
 		}
 
 		check_todos( next?: any ) {
