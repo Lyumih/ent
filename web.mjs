@@ -12221,6 +12221,14 @@ var $;
 			(obj.realm) = () => ((this.realm()));
 			return obj;
 		}
+		user_id(){
+			return "User id";
+		}
+		User_id(){
+			const obj = new this.$.$mol_paragraph();
+			(obj.title) = () => ((this.user_id()));
+			return obj;
+		}
 		username(next){
 			if(next !== undefined) return next;
 			return "";
@@ -12255,24 +12263,24 @@ var $;
 			(obj.value) = (next) => ((this.input(next)));
 			return obj;
 		}
-		send(next){
+		add(next){
 			if(next !== undefined) return next;
 			return null;
 		}
-		Send(){
+		Add(){
 			const obj = new this.$.$mol_button_major();
-			(obj.title) = () => ("Оправить");
-			(obj.click) = (next) => ((this.send(next)));
+			(obj.title) = () => ("Добавить");
+			(obj.click) = (next) => ((this.add(next)));
 			return obj;
 		}
-		read(next){
+		check_todos(next){
 			if(next !== undefined) return next;
 			return null;
 		}
-		Read(){
+		Check_todo(){
 			const obj = new this.$.$mol_button_major();
-			(obj.title) = () => ("Прочитать (загрузить)");
-			(obj.click) = (next) => ((this.read(next)));
+			(obj.title) = () => ("Чек todos");
+			(obj.click) = (next) => ((this.check_todos(next)));
 			return obj;
 		}
 		title(){
@@ -12287,16 +12295,18 @@ var $;
 		}
 		body(){
 			return [
+				(this.User_id()), 
 				(this.Username_labeler()), 
 				(this.Check_user()), 
 				(this.Input()), 
-				(this.Send()), 
-				(this.Read())
+				(this.Add()), 
+				(this.Check_todo())
 			];
 		}
 	};
 	($mol_mem(($.$ent_app.prototype), "Source"));
 	($mol_mem(($.$ent_app.prototype), "Crus_status"));
+	($mol_mem(($.$ent_app.prototype), "User_id"));
 	($mol_mem(($.$ent_app.prototype), "username"));
 	($mol_mem(($.$ent_app.prototype), "Username"));
 	($mol_mem(($.$ent_app.prototype), "Username_labeler"));
@@ -12304,10 +12314,10 @@ var $;
 	($mol_mem(($.$ent_app.prototype), "Check_user"));
 	($mol_mem(($.$ent_app.prototype), "input"));
 	($mol_mem(($.$ent_app.prototype), "Input"));
-	($mol_mem(($.$ent_app.prototype), "send"));
-	($mol_mem(($.$ent_app.prototype), "Send"));
-	($mol_mem(($.$ent_app.prototype), "read"));
-	($mol_mem(($.$ent_app.prototype), "Read"));
+	($mol_mem(($.$ent_app.prototype), "add"));
+	($mol_mem(($.$ent_app.prototype), "Add"));
+	($mol_mem(($.$ent_app.prototype), "check_todos"));
+	($mol_mem(($.$ent_app.prototype), "Check_todo"));
 	($mol_mem(($.$ent_app.prototype), "realm"));
 
 
@@ -12344,7 +12354,18 @@ var $;
         Username: $hyoo_crus_atom_str,
         Todos: $hyoo_crus_list_ref_to(() => $ent_app_todo),
     }) {
+        add_todo(name) {
+            console.log('add todo', this);
+            const todo = this.Todos(true)?.remote_make($hyoo_crus_rank_orgy);
+            todo?.Name()?.val(name);
+            todo?.Title()?.val(name);
+            console.log("add_todo", todo);
+            return todo;
+        }
     }
+    __decorate([
+        $mol_action
+    ], $ent_app_user.prototype, "add_todo", null);
     $.$ent_app_user = $ent_app_user;
 })($ || ($ = {}));
 
@@ -12374,6 +12395,18 @@ var $;
             }
             username(next) {
                 return this.user()?.Username(next)?.val(next) ?? '';
+            }
+            user_id() {
+                return this.user()?.ref()?.description ?? '';
+            }
+            add(next) {
+                console.log('add', next, this.input());
+                this.user()?.add_todo(this.input());
+                console.log('todos', this.user()?.Todos());
+            }
+            check_todos(next) {
+                console.log('check_todos', this.user()?.Todos());
+                console.log('check_todos list', this.user()?.Todos()?.remote_list());
             }
         }
         __decorate([
