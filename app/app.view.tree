@@ -24,7 +24,7 @@ $ent_app $mol_page
 					hint \Todo
 					value? <=> todo_name*? \
 				<= Todo_date* $mol_date
-					value_moment? <=> todo_end*? $mol_time_moment|null
+					value_moment? <=> todo_end*? null
 				<= Todo_done* $mol_check_box
 					hint \Завершено
 					checked? <=> todo_done*? false
