@@ -12236,14 +12236,14 @@ var $;
 			(obj.value) = (next) => ((this.input(next)));
 			return obj;
 		}
-		todo(id, next){
+		todo_name(id, next){
 			if(next !== undefined) return next;
 			return " ";
 		}
 		Todo_name(id){
 			const obj = new this.$.$mol_string();
 			(obj.hint) = () => ("Todo");
-			(obj.value) = (next) => ((this.todo(id, next)));
+			(obj.value) = (next) => ((this.todo_name(id, next)));
 			return obj;
 		}
 		Todo(id){
@@ -12311,7 +12311,7 @@ var $;
 	($mol_mem(($.$ent_app.prototype), "Check_user"));
 	($mol_mem(($.$ent_app.prototype), "input"));
 	($mol_mem(($.$ent_app.prototype), "Input"));
-	($mol_mem_key(($.$ent_app.prototype), "todo"));
+	($mol_mem_key(($.$ent_app.prototype), "todo_name"));
 	($mol_mem_key(($.$ent_app.prototype), "Todo_name"));
 	($mol_mem_key(($.$ent_app.prototype), "Todo"));
 	($mol_mem(($.$ent_app.prototype), "Todo_list"));
@@ -12409,15 +12409,12 @@ var $;
             todo_list() {
                 return this.user()?.Todos()?.remote_list().map(todo => this.Todo(todo.ref())) ?? [];
             }
-            todo(id, next) {
-                console.log('todo', id, next, this.user()?.Todos()?.find(id));
-                console.log('hyoo_crus_ref', $hyoo_crus_ref(id));
-                const todo_realm = this.realm().Node($hyoo_crus_ref(id), $ent_app_todo);
-                console.log('todo_realm', todo_realm);
-                const todo = this.user()?.Todos()?.remote_list()?.find((todo) => todo.ref() === id);
-                console.log("TODO", todo, todo?.Name(), todo?.Name()?.val());
-                return todo?.Name(next)?.val(next) ?? '';
-                return next;
+            todo(id) {
+                return this.realm().Node($hyoo_crus_ref(id), $ent_app_todo);
+            }
+            todo_name(id, next) {
+                console.log('todo', id, next, this.todo(id));
+                return this.todo(id).Name(next)?.val(next) ?? '';
             }
             check_todos(next) {
                 console.log('check_todos', this.user()?.Todos());
