@@ -595,21 +595,28 @@ var $;
 "use strict";
 var $;
 (function ($) {
-    class $mol_after_timeout extends $mol_object2 {
-        delay;
+    class $mol_after_tick extends $mol_object2 {
         task;
-        id;
-        constructor(delay, task) {
+        static promise = null;
+        cancelled = false;
+        constructor(task) {
             super();
-            this.delay = delay;
             this.task = task;
-            this.id = setTimeout(task, delay);
+            if (!$mol_after_tick.promise)
+                $mol_after_tick.promise = Promise.resolve().then(() => {
+                    $mol_after_tick.promise = null;
+                });
+            $mol_after_tick.promise.then(() => {
+                if (this.cancelled)
+                    return;
+                task();
+            });
         }
         destructor() {
-            clearTimeout(this.id);
+            this.cancelled = true;
         }
     }
-    $.$mol_after_timeout = $mol_after_timeout;
+    $.$mol_after_tick = $mol_after_tick;
 })($ || ($ = {}));
 
 ;
@@ -617,7 +624,12 @@ var $;
 var $;
 (function ($) {
     function $mol_promise_like(val) {
-        return val && typeof val === 'object' && 'then' in val && typeof val.then === 'function';
+        try {
+            return val && typeof val === 'object' && 'then' in val && typeof val.then === 'function';
+        }
+        catch {
+            return false;
+        }
     }
     $.$mol_promise_like = $mol_promise_like;
 })($ || ($ = {}));
@@ -637,7 +649,7 @@ var $;
         static plan() {
             if (this.plan_task)
                 return;
-            this.plan_task = new $mol_after_timeout(0, () => {
+            this.plan_task = new $mol_after_tick(() => {
                 try {
                     this.sync();
                 }
@@ -991,9 +1003,10 @@ var $;
                 return right_cache;
         }
         else {
-            left_cache = new WeakMap([[right, true]]);
+            left_cache = new WeakMap();
             $.$mol_compare_deep_cache.set(left, left_cache);
         }
+        left_cache.set(right, true);
         let result;
         try {
             if (!left_proto)
@@ -1528,30 +1541,6 @@ var $;
 "use strict";
 var $;
 (function ($) {
-    class $mol_after_tick extends $mol_object2 {
-        task;
-        promise;
-        cancelled = false;
-        constructor(task) {
-            super();
-            this.task = task;
-            this.promise = Promise.resolve().then(() => {
-                if (this.cancelled)
-                    return;
-                task();
-            });
-        }
-        destructor() {
-            this.cancelled = true;
-        }
-    }
-    $.$mol_after_tick = $mol_after_tick;
-})($ || ($ = {}));
-
-;
-"use strict";
-var $;
-(function ($) {
     class $mol_view_selection extends $mol_object {
         static focused(next, notify) {
             const parents = [];
@@ -1744,7 +1733,7 @@ var $;
             if (val === undefined) {
                 continue;
             }
-            if (val === null || val === false) {
+            else if (val === null || val === false) {
                 if (!el.hasAttribute(name))
                     continue;
                 el.removeAttribute(name);
@@ -2486,10 +2475,7 @@ var $;
             const win = this.$.$mol_dom_context;
             if (win.parent !== win.self && !win.document.hasFocus())
                 return;
-            new this.$.$mol_after_frame(() => {
-                this.dom_node().scrollIntoView({ block: 'start', inline: 'nearest' });
-                this.focused(true);
-            });
+            this.focused(true);
         }
         destructor() {
             const node = $mol_wire_probe(() => this.dom_node());
@@ -2570,7 +2556,7 @@ var $;
 "use strict";
 var $;
 (function ($) {
-    $mol_style_attach("mol/view/view/view.css", "[mol_view] {\n\ttransition-property: height, width, min-height, min-width, max-width, max-height, transform;\n\ttransition-duration: .2s;\n\ttransition-timing-function: ease-out;\n\t-webkit-appearance: none;\n\tbox-sizing: border-box;\n\tdisplay: flex;\n\tflex-shrink: 0;\n\tcontain: style;\n\tscrollbar-color: var(--mol_theme_line) transparent;\n\tscrollbar-width: thin;\n}\t\n\n[mol_view]::selection {\n\tbackground: var(--mol_theme_line);\n}\t\n\n[mol_view]::-webkit-scrollbar {\n\twidth: .25rem;\n\theight: .25rem;\n}\n\n[mol_view]::-webkit-scrollbar-corner {\n\tbackground-color: var(--mol_theme_line);\n}\n\n[mol_view]::-webkit-scrollbar-track {\n\tbackground-color: transparent;\n}\n\n[mol_view]::-webkit-scrollbar-thumb {\n\tbackground-color: var(--mol_theme_line);\n\tborder-radius: var(--mol_gap_round);\n}\n\n[mol_view] > * {\n\tword-break: inherit;\n}\n\n[mol_view_root] {\n\tmargin: 0;\n\tpadding: 0;\n\twidth: 100%;\n\theight: 100%;\n\tbox-sizing: border-box;\n\tfont-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n\tfont-size: 1rem;\n\tline-height: 1.5rem;\n\tbackground: var(--mol_theme_back);\n\tcolor: var(--mol_theme_text);\n\tcontain: unset; /** Fixes bg ignoring when applied to body on Chrome */\n\ttab-size: 4;\n\toverscroll-behavior: contain; /** Disable navigation gestures **/\n}\n\n@media print {\n\t[mol_view_root] {\n\t\theight: auto;\n\t}\n}\n\n[mol_view][mol_view_error]:not([mol_view_error=\"Promise\"]) {\n\tbackground-image: repeating-linear-gradient(\n\t\t-45deg,\n\t\t#f92323,\n\t\t#f92323 .5rem,\n\t\t#ff3d3d .5rem,\n\t\t#ff3d3d 1.5rem\n\t);\n\tcolor: black;\n\talign-items: center;\n\tjustify-content: center;\n}\n\n@keyframes mol_view_wait {\n\tfrom {\n\t\topacity: .25;\n\t}\n\t20% {\n\t\topacity: .75;\n\t}\n\tto {\n\t\topacity: .25;\n\t}\n}\n\n:where([mol_view][mol_view_error=\"Promise\"]) {\n\tbackground: var(--mol_theme_hover);\n}\n\n[mol_view][mol_view_error=\"Promise\"] {\n\tanimation: mol_view_wait 1s steps( 20, end ) infinite;\n}\n");
+    $mol_style_attach("mol/view/view/view.css", "[mol_view] {\n\ttransition-property: height, width, min-height, min-width, max-width, max-height, transform;\n\ttransition-duration: .2s;\n\ttransition-timing-function: ease-out;\n\t-webkit-appearance: none;\n\tbox-sizing: border-box;\n\tdisplay: flex;\n\tflex-shrink: 0;\n\tcontain: style;\n\tscrollbar-color: var(--mol_theme_line) transparent;\n\tscrollbar-width: thin;\n}\t\n\n[mol_view]::selection {\n\tbackground: var(--mol_theme_line);\n}\t\n\n[mol_view]::-webkit-scrollbar {\n\twidth: .25rem;\n\theight: .25rem;\n}\n\n[mol_view]::-webkit-scrollbar-corner {\n\tbackground-color: var(--mol_theme_line);\n}\n\n[mol_view]::-webkit-scrollbar-track {\n\tbackground-color: transparent;\n}\n\n[mol_view]::-webkit-scrollbar-thumb {\n\tbackground-color: var(--mol_theme_line);\n\tborder-radius: var(--mol_gap_round);\n}\n\n[mol_view] > * {\n\tword-break: inherit;\n}\n\n[mol_view_root] {\n\tmargin: 0;\n\tpadding: 0;\n\twidth: 100%;\n\theight: 100%;\n\tbox-sizing: border-box;\n\tfont-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n\tfont-size: 1rem;\n\tline-height: 1.5rem;\n\tbackground: var(--mol_theme_back);\n\tcolor: var(--mol_theme_text);\n\tcontain: unset; /** Fixes bg ignoring when applied to body on Chrome */\n\ttab-size: 4;\n\toverscroll-behavior: contain; /** Disable navigation gestures **/\n}\n\n@media print {\n\t[mol_view_root] {\n\t\theight: auto;\n\t}\n}\n\n[mol_view][mol_view_error]:not([mol_view_error=\"Promise\"]) {\n\tbackground-image: repeating-linear-gradient(\n\t\t-45deg,\n\t\t#f92323,\n\t\t#f92323 .5rem,\n\t\t#ff3d3d .5rem,\n\t\t#ff3d3d 1.5rem\n\t);\n\tcolor: black;\n\talign-items: center;\n\tjustify-content: center;\n}\n\n@keyframes mol_view_wait {\n\tfrom {\n\t\topacity: .25;\n\t}\n\t20% {\n\t\topacity: .75;\n\t}\n\tto {\n\t\topacity: .25;\n\t}\n}\n\n:where([mol_view][mol_view_error=\"Promise\"]) {\n\tbackground: var(--mol_theme_hover);\n}\n\n[mol_view][mol_view_error=\"Promise\"] {\n\tanimation: mol_view_wait 1s steps(20,end) infinite;\n}\n");
 })($ || ($ = {}));
 
 ;
@@ -2862,7 +2848,6 @@ var $;
             contain: 'content',
             '>': {
                 $mol_view: {
-                    transform: 'translateZ(0)',
                     gridArea: '1/1',
                 },
             },
@@ -3466,6 +3451,27 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    class $mol_after_timeout extends $mol_object2 {
+        delay;
+        task;
+        id;
+        constructor(delay, task) {
+            super();
+            this.delay = delay;
+            this.task = task;
+            this.id = setTimeout(task, delay);
+        }
+        destructor() {
+            clearTimeout(this.id);
+        }
+    }
+    $.$mol_after_timeout = $mol_after_timeout;
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
     class $mol_state_time extends $mol_object {
         static task(precision, reset) {
             if (precision) {
@@ -4004,6 +4010,9 @@ var $;
         json() {
             return $mol_wire_sync(this.native).json();
         }
+        blob() {
+            return $mol_wire_sync(this.native).blob();
+        }
         buffer() {
             return $mol_wire_sync(this.native).arrayBuffer();
         }
@@ -4023,9 +4032,6 @@ var $;
     __decorate([
         $mol_action
     ], $mol_fetch_response.prototype, "text", null);
-    __decorate([
-        $mol_action
-    ], $mol_fetch_response.prototype, "buffer", null);
     __decorate([
         $mol_action
     ], $mol_fetch_response.prototype, "xml", null);
@@ -4072,6 +4078,9 @@ var $;
         static json(input, init) {
             return this.success(input, init).json();
         }
+        static blob(input, init) {
+            return this.success(input, init).blob();
+        }
         static buffer(input, init) {
             return this.success(input, init).buffer();
         }
@@ -4100,6 +4109,9 @@ var $;
     __decorate([
         $mol_action
     ], $mol_fetch, "json", null);
+    __decorate([
+        $mol_action
+    ], $mol_fetch, "blob", null);
     __decorate([
         $mol_action
     ], $mol_fetch, "buffer", null);
@@ -6658,6 +6670,66 @@ var $;
 "use strict";
 
 ;
+	($.$hyoo_crus_status) = class $hyoo_crus_status extends ($.$mol_select) {
+		master_id(id){
+			return "";
+		}
+		Option_logo(id){
+			const obj = new this.$.$mol_avatar();
+			(obj.id) = () => ((this?.master_id(id)));
+			return obj;
+		}
+		master_link(){
+			return "";
+		}
+		Well(){
+			const obj = new this.$.$mol_avatar();
+			(obj.id) = () => ((this?.master_link()));
+			return obj;
+		}
+		Fail(){
+			const obj = new this.$.$mol_icon_sync_off();
+			return obj;
+		}
+		link_content(){
+			return [(this?.Well()), (this?.Fail())];
+		}
+		hint(){
+			return "Sync status";
+		}
+		message(){
+			return (this?.hint());
+		}
+		Link(){
+			const obj = new this.$.$mol_link();
+			(obj.uri) = () => ((this?.master_link()));
+			(obj.sub) = () => ((this?.link_content()));
+			(obj.hint) = () => ((this?.message()));
+			return obj;
+		}
+		minimal_width(){
+			return 40;
+		}
+		minimal_height(){
+			return 40;
+		}
+		Filter(){
+			return null;
+		}
+		option_content(id){
+			return [(this?.Option_logo(id)), (this?.option_label(id))];
+		}
+		trigger_content(){
+			return [(this?.Link())];
+		}
+	};
+	($mol_mem_key(($.$hyoo_crus_status.prototype), "Option_logo"));
+	($mol_mem(($.$hyoo_crus_status.prototype), "Well"));
+	($mol_mem(($.$hyoo_crus_status.prototype), "Fail"));
+	($mol_mem(($.$hyoo_crus_status.prototype), "Link"));
+
+
+;
 "use strict";
 var $;
 (function ($) {
@@ -6810,25 +6882,33 @@ var $;
     $.$hyoo_crus_ref = $mol_data_tagged({ $hyoo_crus_ref: (val) => {
             if (typeof val === 'string')
                 val = Symbol.for(val.replace(/_+$/, ''));
-            if (/^(([a-zæA-ZÆ0-9]{8})?_){0,2}([a-zæA-ZÆ0-9]{8})?$/.test(val.description))
+            if (/^(([a-zæA-ZÆ0-9]{8})?_){0,3}([a-zæA-ZÆ0-9]{8})?$/.test(val.description))
                 return val;
             $mol_fail(new Error(`Wrong ref (${val.description})`));
         } }).$hyoo_crus_ref;
+    function $hyoo_crus_ref_lord(ref) {
+        return $.$hyoo_crus_ref(ref.description.split('_').slice(0, 2).join('_'));
+    }
+    $.$hyoo_crus_ref_lord = $hyoo_crus_ref_lord;
     function $hyoo_crus_ref_land(ref) {
-        return $.$hyoo_crus_ref(ref.description.slice(0, 17));
+        return $.$hyoo_crus_ref(ref.description.split('_').slice(0, 3).join('_').replace(/_$/, ''));
     }
     $.$hyoo_crus_ref_land = $hyoo_crus_ref_land;
     function $hyoo_crus_ref_peer(ref) {
         return ref.description.split('_')[0] ?? '';
     }
     $.$hyoo_crus_ref_peer = $hyoo_crus_ref_peer;
-    function $hyoo_crus_ref_head(ref) {
+    function $hyoo_crus_ref_area(ref) {
         return ref.description.split('_')[2] ?? '';
+    }
+    $.$hyoo_crus_ref_area = $hyoo_crus_ref_area;
+    function $hyoo_crus_ref_head(ref) {
+        return ref.description.split('_')[3] ?? '';
     }
     $.$hyoo_crus_ref_head = $hyoo_crus_ref_head;
     function $hyoo_crus_ref_encode(ref) {
         return $mol_base64_ae_decode((ref.description || '_')
-            .split(/_/g)
+            .split('_')
             .map(numb => numb || 'AAAAAAAA')
             .join(''));
     }
@@ -6840,17 +6920,23 @@ var $;
     }
     $.$hyoo_crus_ref_decode = $hyoo_crus_ref_decode;
     function $hyoo_crus_ref_relate(base, ref) {
-        if (!ref.description.padEnd(18, '_').startsWith(base.description.slice(0, 18).padEnd(18, '_')))
+        base = $hyoo_crus_ref_land(base);
+        if ($hyoo_crus_ref_land(ref) !== base)
             return ref;
-        return $.$hyoo_crus_ref(('__' + (ref.description.split('_')[2] ?? '')).replace(/_+$/, ''));
+        const head = $hyoo_crus_ref_head(ref);
+        return $.$hyoo_crus_ref(head ? '___' + head : '');
     }
     $.$hyoo_crus_ref_relate = $hyoo_crus_ref_relate;
     function $hyoo_crus_ref_resolve(base, ref) {
         if (!ref.description)
             return $hyoo_crus_ref_land(base);
-        if (!ref.description.startsWith('__'))
+        if (!ref.description.startsWith('___'))
             return ref;
-        return $.$hyoo_crus_ref(base.description.slice(0, 18).padEnd(18, '_') + ref.description.slice(2));
+        const parts = base.description.split('_').slice(0, 3);
+        while (parts.length < 3)
+            parts.push('');
+        parts.push(ref.description.slice(3));
+        return $.$hyoo_crus_ref(parts.join('_'));
     }
     $.$hyoo_crus_ref_resolve = $hyoo_crus_ref_resolve;
 })($ || ($ = {}));
@@ -6961,7 +7047,7 @@ var $;
         }
         send_text(data) {
             this.send_code(200);
-            this.send_type('text/plain');
+            this.send_type('text/plain;charset=utf-8');
             this.send_bin($mol_charset_encode(data));
         }
         send_json(data) {
@@ -6971,7 +7057,7 @@ var $;
         }
         send_dom(data) {
             this.send_code(200);
-            this.send_type('text/html');
+            this.send_type('text/html;charset=utf-8');
             this.send_text($mol_dom_serialize(data));
         }
         static make(config) {
@@ -7383,8 +7469,16 @@ var $;
         get native() {
             if (this._native)
                 return this._native;
-            const utc = this.toOffset('Z');
-            return this._native = new Date(Date.UTC(utc.year ?? 0, utc.month ?? 0, (utc.day ?? 0) + 1, utc.hour ?? 0, utc.minute ?? 0, utc.second != undefined ? Math.floor(utc.second) : 0, utc.second != undefined ? Math.floor((utc.second - Math.floor(utc.second)) * 1000) : 0));
+            const second = Math.floor(this.second ?? 0);
+            const native = new Date(this.year ?? 0, this.month ?? 0, (this.day ?? 0) + 1, this.hour ?? 0, this.minute ?? 0, second, Math.floor(((this.second ?? 0) - second) * 1000));
+            const offset = native.getTimezoneOffset();
+            shift: if (this.offset) {
+                const target = this.offset.count('PT1m');
+                if (target === offset)
+                    break shift;
+                native.setMinutes(native.getMinutes() - offset + target);
+            }
+            return this._native = native;
         }
         _normal;
         get normal() {
@@ -7416,9 +7510,9 @@ var $;
         shift(config) {
             const duration = new $mol_time_duration(config);
             const moment = new $mol_time_moment().merge({
-                year: this.year,
-                month: this.month,
-                day: this.day,
+                year: this.year ?? 0,
+                month: this.month ?? 0,
+                day: this.day ?? 0,
                 hour: this.hour ?? 0,
                 minute: this.minute ?? 0,
                 second: this.second ?? 0,
@@ -7453,7 +7547,7 @@ var $;
         toOffset(config = new $mol_time_moment().offset) {
             const duration = new $mol_time_duration(config);
             const offset = this.offset || new $mol_time_moment().offset;
-            let with_time = new $mol_time_moment('T00:00:00').merge(this);
+            let with_time = new $mol_time_moment('0001-01-01T00:00:00').merge(this);
             const moment = with_time.shift(duration.summ(offset.mult(-1)));
             return moment.merge({ offset: duration });
         }
@@ -7714,7 +7808,7 @@ var $;
 var $;
 (function ($) {
     class $hyoo_crus_face_map extends Map {
-        last = 0;
+        last_time = 0;
         total = 0;
         constructor(entries) {
             super();
@@ -7728,17 +7822,20 @@ var $;
                 this.time_max(peer, time);
         }
         time_max(peer, time) {
-            if (this.last < time)
-                this.last = time;
+            if (this.last_time < time)
+                this.last_time = time;
             let prev = this.get(peer) ?? 0;
             if (prev < time)
                 this.set(peer, time);
         }
         tick() {
-            return this.last = Math.max(this.last + 1, Math.floor(Date.now() * 65.536));
+            return this.last_time = Math.max(this.last_time + 1, Math.floor(Date.now() * 65.536));
+        }
+        last_moment() {
+            return $hyoo_crus_time_moment(this.last_time);
         }
         [$mol_dev_format_head]() {
-            return $mol_dev_format_span({}, $mol_dev_format_native(this), $mol_dev_format_shade(' ', $hyoo_crus_time_dump(this.last)), $mol_dev_format_shade(' #', this.total));
+            return $mol_dev_format_span({}, $mol_dev_format_native(this), $mol_dev_format_shade(' ', $hyoo_crus_time_dump(this.last_time)), $mol_dev_format_shade(' #', this.total));
         }
     }
     __decorate([
@@ -7753,12 +7850,12 @@ var $;
 (function ($) {
     let $hyoo_crus_part;
     (function ($hyoo_crus_part) {
-        $hyoo_crus_part[$hyoo_crus_part["land"] = 219] = "land";
+        $hyoo_crus_part[$hyoo_crus_part["land"] = 3] = "land";
+        $hyoo_crus_part[$hyoo_crus_part["face"] = 11] = "face";
         $hyoo_crus_part[$hyoo_crus_part["pass"] = 255] = "pass";
         $hyoo_crus_part[$hyoo_crus_part["gift"] = 247] = "gift";
-        $hyoo_crus_part[$hyoo_crus_part["gist"] = 0] = "gist";
-        $hyoo_crus_part[$hyoo_crus_part["hash"] = 253] = "hash";
-        $hyoo_crus_part[$hyoo_crus_part["rock"] = 245] = "rock";
+        $hyoo_crus_part[$hyoo_crus_part["sand"] = 8] = "sand";
+        $hyoo_crus_part[$hyoo_crus_part["rock"] = 5] = "rock";
         $hyoo_crus_part[$hyoo_crus_part["root"] = 1] = "root";
         $hyoo_crus_part[$hyoo_crus_part["buck"] = 9] = "buck";
     })($hyoo_crus_part = $.$hyoo_crus_part || ($.$hyoo_crus_part = {}));
@@ -7907,7 +8004,7 @@ var $;
 (function ($) {
     const algorithm = {
         name: 'ECDSA',
-        hash: 'SHA-256',
+        hash: 'SHA-1',
         namedCurve: "P-256",
     };
     class $mol_crypto_key extends $mol_buffer {
@@ -8199,29 +8296,6 @@ var $;
 "use strict";
 var $;
 (function ($) {
-    let $hyoo_crus_area;
-    (function ($hyoo_crus_area) {
-        $hyoo_crus_area[$hyoo_crus_area["data"] = 0] = "data";
-        $hyoo_crus_area[$hyoo_crus_area["meta"] = 1] = "meta";
-    })($hyoo_crus_area = $.$hyoo_crus_area || ($.$hyoo_crus_area = {}));
-    function $hyoo_crus_area_of(numb) {
-        const num = $mol_base64_ae_decode(numb || 'AAAAAAAA')[0];
-        return $hyoo_crus_area[num % 2];
-    }
-    $.$hyoo_crus_area_of = $hyoo_crus_area_of;
-    function $hyoo_crus_area_to(numb, area) {
-        const buf = $mol_base64_ae_decode(numb || 'AAAAAAAA');
-        buf[0] -= buf[0] % 2 - $hyoo_crus_area[area];
-        numb = $mol_base64_ae_encode(buf);
-        return numb;
-    }
-    $.$hyoo_crus_area_to = $hyoo_crus_area_to;
-})($ || ($ = {}));
-
-;
-"use strict";
-var $;
-(function ($) {
     let $hyoo_crus_rank;
     (function ($hyoo_crus_rank) {
         $hyoo_crus_rank[$hyoo_crus_rank["nil"] = 0] = "nil";
@@ -8248,14 +8322,11 @@ var $;
         head() {
             return '';
         }
-        realm() {
-            return this.land()?.realm() ?? null;
-        }
         land_ref() {
             return this.land()?.ref() ?? this.$.$hyoo_crus_auth.current().lord();
         }
         ref() {
-            return $hyoo_crus_ref(this.land_ref().description + '_' + this.head());
+            return $hyoo_crus_ref_resolve(this.land_ref(), $hyoo_crus_ref('___' + this.head()));
         }
         toJSON() {
             return this.ref().description;
@@ -8274,7 +8345,10 @@ var $;
             return this.units().map(unit => map[unit.tag()]().Item(unit.self()));
         }
         units() {
-            return this.land().gists_ordered(this.head()).filter(unit => !unit.nil());
+            return this.units_of('');
+        }
+        units_of(peer) {
+            return this.land().sand_ordered({ head: this.head(), peer }).filter(unit => unit.tip() !== 'nil');
         }
         filled() {
             return this.units().length > 0;
@@ -8285,20 +8359,33 @@ var $;
         last_change() {
             const land = this.land();
             let last = 0;
-            const map = {
-                term: () => null,
-                solo: () => land.Node($hyoo_crus_atom_vary),
-                vals: () => land.Node($hyoo_crus_list_vary),
-                keys: () => land.Node($hyoo_crus_dict),
+            const visit = (sand) => {
+                if (sand.time() > last)
+                    last = sand.time();
+                if (sand.tag() === 'term')
+                    return;
+                land.Node($hyoo_crus_node).Item(sand.self()).units().forEach(visit);
             };
-            const visit = (gist) => {
-                if (gist.time() > last)
-                    last = gist.time();
-                map[gist.tag()]()?.Item(gist.self()).units().forEach(visit);
+            this.units().forEach(visit);
+            return last ? $hyoo_crus_time_moment(last) : null;
+        }
+        author_peers() {
+            const land = this.land();
+            const peers = new Set();
+            const visit = (sand) => {
+                peers.add(sand.peer());
+                if (sand.tag() === 'term')
+                    return;
+                land.Node($hyoo_crus_node).Item(sand.self()).units_of(null).forEach(visit);
             };
-            for (const gist of this.units())
-                visit(gist);
-            return last ? new $mol_time_moment(last) : null;
+            this.units_of(null).forEach(visit);
+            return [...peers];
+        }
+        author_lords() {
+            const land = this.land();
+            return this.author_peers()
+                .map(peer => land.pass.get(peer)?.lord())
+                .filter($mol_guard_defined);
         }
         ;
         [$mol_dev_format_head]() {
@@ -8315,11 +8402,17 @@ var $;
         $mol_mem_key
     ], $hyoo_crus_node.prototype, "nodes", null);
     __decorate([
-        $mol_mem
-    ], $hyoo_crus_node.prototype, "units", null);
+        $mol_mem_key
+    ], $hyoo_crus_node.prototype, "units_of", null);
     __decorate([
         $mol_mem
     ], $hyoo_crus_node.prototype, "last_change", null);
+    __decorate([
+        $mol_mem
+    ], $hyoo_crus_node.prototype, "author_peers", null);
+    __decorate([
+        $mol_mem
+    ], $hyoo_crus_node.prototype, "author_lords", null);
     $.$hyoo_crus_node = $hyoo_crus_node;
 })($ || ($ = {}));
 
@@ -8341,6 +8434,149 @@ var $;
         $mol_mem_key
     ], $hyoo_crus_fund.prototype, "Item", null);
     $.$hyoo_crus_fund = $hyoo_crus_fund;
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    class $mol_graph {
+        nodes = new Set();
+        edges_out = new Map();
+        edges_in = new Map();
+        link(from, to, edge) {
+            this.link_out(from, to, edge);
+            this.link_in(to, from, edge);
+        }
+        unlink(from, to) {
+            this.edges_in.get(to)?.delete(from);
+            this.edges_out.get(from)?.delete(to);
+        }
+        link_out(from, to, edge) {
+            let pair = this.edges_out.get(from);
+            if (!pair) {
+                pair = new Map();
+                this.edges_out.set(from, pair);
+                this.nodes.add(from);
+            }
+            pair.set(to, edge);
+            this.nodes.add(to);
+        }
+        link_in(to, from, edge) {
+            let pair = this.edges_in.get(to);
+            if (!pair) {
+                pair = new Map();
+                this.edges_in.set(to, pair);
+                this.nodes.add(to);
+            }
+            pair.set(from, edge);
+            this.nodes.add(to);
+        }
+        edge(from, to) {
+            return this.edge_out(from, to) ?? this.edge_in(to, from);
+        }
+        edge_out(from, to) {
+            return this.edges_out.get(from)?.get(to) ?? null;
+        }
+        edge_in(to, from) {
+            return this.edges_in.get(to)?.get(from) ?? null;
+        }
+        acyclic(get_weight) {
+            const checked = [];
+            for (const start of this.nodes) {
+                const path = [];
+                const visit = (from) => {
+                    if (checked.includes(from))
+                        return Number.MAX_SAFE_INTEGER;
+                    const index = path.lastIndexOf(from);
+                    if (index > -1) {
+                        const cycle = path.slice(index);
+                        return cycle.reduce((weight, node, index) => Math.min(weight, get_weight(this.edge_out(node, cycle[(index + 1) % cycle.length]))), Number.MAX_SAFE_INTEGER);
+                    }
+                    path.push(from);
+                    dive: try {
+                        const deps = this.edges_out.get(from);
+                        if (!deps)
+                            break dive;
+                        for (const [to, edge] of deps) {
+                            if (to === from) {
+                                this.unlink(from, to);
+                                continue;
+                            }
+                            const weight_out = get_weight(edge);
+                            const min = visit(to);
+                            if (weight_out > min)
+                                return min;
+                            if (weight_out === min) {
+                                this.unlink(from, to);
+                                if (path.length > 1) {
+                                    const enter = path[path.length - 2];
+                                    this.link(enter, to, edge);
+                                }
+                            }
+                        }
+                    }
+                    finally {
+                        path.pop();
+                    }
+                    checked.push(from);
+                    return Number.MAX_SAFE_INTEGER;
+                };
+                visit(start);
+            }
+        }
+        get sorted() {
+            const sorted = new Set();
+            const visit = (node) => {
+                if (sorted.has(node))
+                    return;
+                const deps = this.edges_out.get(node);
+                if (deps) {
+                    for (const [dep] of deps)
+                        visit(dep);
+                }
+                sorted.add(node);
+            };
+            for (const node of this.nodes) {
+                visit(node);
+            }
+            return sorted;
+        }
+        get roots() {
+            const roots = [];
+            for (const node of this.nodes) {
+                if (this.edges_in.get(node)?.size)
+                    continue;
+                roots.push(node);
+            }
+            return roots;
+        }
+        nodes_depth(select) {
+            const stat = new Map();
+            const visit = (node, depth = 0) => {
+                if (stat.has(node))
+                    stat.set(node, select(depth, stat.get(node)));
+                else
+                    stat.set(node, depth);
+                for (const kid of this.edges_out.get(node)?.keys() ?? [])
+                    visit(kid, depth + 1);
+            };
+            for (const root of this.roots)
+                visit(root);
+            return stat;
+        }
+        depth_nodes(select) {
+            const groups = [];
+            for (const [node, depth] of this.nodes_depth(select).entries()) {
+                if (groups[depth])
+                    groups[depth].push(node);
+                else
+                    groups[depth] = [node];
+            }
+            return groups;
+        }
+    }
+    $.$mol_graph = $mol_graph;
 })($ || ($ = {}));
 
 ;
@@ -8809,12 +9045,12 @@ var $;
     };
     let $hyoo_crus_vary_tip;
     (function ($hyoo_crus_vary_tip) {
-        $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["nil"] = 0] = "nil";
-        $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["bin"] = 1] = "bin";
-        $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["bool"] = 2] = "bool";
-        $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["int"] = 3] = "int";
-        $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["real"] = 4] = "real";
-        $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["ref"] = 5] = "ref";
+        $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["nil"] = 1] = "nil";
+        $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["bin"] = 2] = "bin";
+        $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["bool"] = 3] = "bool";
+        $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["int"] = 4] = "int";
+        $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["real"] = 8] = "real";
+        $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["ref"] = 12] = "ref";
         $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["str"] = 16] = "str";
         $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["time"] = 17] = "time";
         $hyoo_crus_vary_tip[$hyoo_crus_vary_tip["dur"] = 18] = "dur";
@@ -9541,34 +9777,61 @@ var $;
             let h2 = hash[2];
             let h3 = hash[3];
             let h4 = hash[4];
-            for (let j = 0; j < 80; ++j) {
-                let turn;
-                if (j < 16) {
-                    const k = i + j;
-                    if (k === klens) {
-                        sponge[j] = bits;
-                    }
-                    else {
-                        let word = k === words.length ? tail :
-                            k > words.length ? 0 :
-                                words[k];
-                        word = word << 24 | word << 8 & 0xFF0000 | word >>> 8 & 0xFF00 | word >>> 24 & 0xFF;
-                        if (k === kbits)
-                            word |= kword;
-                        sponge[j] = word;
-                    }
-                    turn = (h1 & h2 | ~h1 & h3) + 1518500249;
+            for (let j = 0; j < 16; ++j) {
+                const k = i + j;
+                if (k === klens) {
+                    sponge[j] = bits;
                 }
                 else {
-                    const shuffle = sponge[j - 3] ^ sponge[j - 8] ^ sponge[j - 14] ^ sponge[j - 16];
-                    sponge[j] = shuffle << 1 | shuffle >>> 31;
-                    turn =
-                        j < 20 ? (h1 & h2 | ~h1 & h3) + 1518500249 :
-                            j < 40 ? (h1 ^ h2 ^ h3) + 1859775393 :
-                                j < 60 ? (h1 & h2 | h1 & h3 | h2 & h3) - 1894007588 :
-                                    (h1 ^ h2 ^ h3) - 899497514;
+                    let word = k === words.length ? tail :
+                        k > words.length ? 0 :
+                            words[k];
+                    word = word << 24 | word << 8 & 0xFF0000 | word >>> 8 & 0xFF00 | word >>> 24 & 0xFF;
+                    if (k === kbits)
+                        word |= kword;
+                    sponge[j] = word;
                 }
-                const next = turn + h4 + (sponge[j] >>> 0) + ((h0 << 5) | (h0 >>> 27));
+                const next = ((h1 & h2 | ~h1 & h3) + 1518500249 + h4 + (sponge[j] >>> 0) + ((h0 << 5) | (h0 >>> 27))) | 0;
+                h4 = h3;
+                h3 = h2;
+                h2 = (h1 << 30) | (h1 >>> 2);
+                h1 = h0;
+                h0 = next;
+            }
+            for (let j = 16; j < 20; ++j) {
+                const shuffle = sponge[j - 3] ^ sponge[j - 8] ^ sponge[j - 14] ^ sponge[j - 16];
+                sponge[j] = shuffle << 1 | shuffle >>> 31;
+                const next = ((h1 & h2 | ~h1 & h3) + 1518500249 + h4 + (sponge[j] >>> 0) + ((h0 << 5) | (h0 >>> 27))) | 0;
+                h4 = h3;
+                h3 = h2;
+                h2 = (h1 << 30) | (h1 >>> 2);
+                h1 = h0;
+                h0 = next;
+            }
+            for (let j = 20; j < 40; ++j) {
+                const shuffle = sponge[j - 3] ^ sponge[j - 8] ^ sponge[j - 14] ^ sponge[j - 16];
+                sponge[j] = shuffle << 1 | shuffle >>> 31;
+                const next = ((h1 ^ h2 ^ h3) + 1859775393 + h4 + (sponge[j] >>> 0) + ((h0 << 5) | (h0 >>> 27))) | 0;
+                h4 = h3;
+                h3 = h2;
+                h2 = (h1 << 30) | (h1 >>> 2);
+                h1 = h0;
+                h0 = next;
+            }
+            for (let j = 40; j < 60; ++j) {
+                const shuffle = sponge[j - 3] ^ sponge[j - 8] ^ sponge[j - 14] ^ sponge[j - 16];
+                sponge[j] = shuffle << 1 | shuffle >>> 31;
+                const next = ((h1 & h2 | h1 & h3 | h2 & h3) - 1894007588 + h4 + (sponge[j] >>> 0) + ((h0 << 5) | (h0 >>> 27))) | 0;
+                h4 = h3;
+                h3 = h2;
+                h2 = (h1 << 30) | (h1 >>> 2);
+                h1 = h0;
+                h0 = next;
+            }
+            for (let j = 60; j < 80; ++j) {
+                const shuffle = sponge[j - 3] ^ sponge[j - 8] ^ sponge[j - 14] ^ sponge[j - 16];
+                sponge[j] = shuffle << 1 | shuffle >>> 31;
+                const next = ((h1 ^ h2 ^ h3) - 899497514 + h4 + (sponge[j] >>> 0) + ((h0 << 5) | (h0 >>> 27))) | 0;
                 h4 = h3;
                 h3 = h2;
                 h2 = (h1 << 30) | (h1 >>> 2);
@@ -9620,149 +9883,6 @@ var $;
 "use strict";
 var $;
 (function ($) {
-    class $mol_graph {
-        nodes = new Set();
-        edges_out = new Map();
-        edges_in = new Map();
-        link(from, to, edge) {
-            this.link_out(from, to, edge);
-            this.link_in(to, from, edge);
-        }
-        unlink(from, to) {
-            this.edges_in.get(to)?.delete(from);
-            this.edges_out.get(from)?.delete(to);
-        }
-        link_out(from, to, edge) {
-            let pair = this.edges_out.get(from);
-            if (!pair) {
-                pair = new Map();
-                this.edges_out.set(from, pair);
-                this.nodes.add(from);
-            }
-            pair.set(to, edge);
-            this.nodes.add(to);
-        }
-        link_in(to, from, edge) {
-            let pair = this.edges_in.get(to);
-            if (!pair) {
-                pair = new Map();
-                this.edges_in.set(to, pair);
-                this.nodes.add(to);
-            }
-            pair.set(from, edge);
-            this.nodes.add(to);
-        }
-        edge(from, to) {
-            return this.edge_out(from, to) ?? this.edge_in(to, from);
-        }
-        edge_out(from, to) {
-            return this.edges_out.get(from)?.get(to) ?? null;
-        }
-        edge_in(to, from) {
-            return this.edges_in.get(to)?.get(from) ?? null;
-        }
-        acyclic(get_weight) {
-            const checked = [];
-            for (const start of this.nodes) {
-                const path = [];
-                const visit = (from) => {
-                    if (checked.includes(from))
-                        return Number.MAX_SAFE_INTEGER;
-                    const index = path.lastIndexOf(from);
-                    if (index > -1) {
-                        const cycle = path.slice(index);
-                        return cycle.reduce((weight, node, index) => Math.min(weight, get_weight(this.edge_out(node, cycle[(index + 1) % cycle.length]))), Number.MAX_SAFE_INTEGER);
-                    }
-                    path.push(from);
-                    dive: try {
-                        const deps = this.edges_out.get(from);
-                        if (!deps)
-                            break dive;
-                        for (const [to, edge] of deps) {
-                            if (to === from) {
-                                this.unlink(from, to);
-                                continue;
-                            }
-                            const weight_out = get_weight(edge);
-                            const min = visit(to);
-                            if (weight_out > min)
-                                return min;
-                            if (weight_out === min) {
-                                this.unlink(from, to);
-                                if (path.length > 1) {
-                                    const enter = path[path.length - 2];
-                                    this.link(enter, to, edge);
-                                }
-                            }
-                        }
-                    }
-                    finally {
-                        path.pop();
-                    }
-                    checked.push(from);
-                    return Number.MAX_SAFE_INTEGER;
-                };
-                visit(start);
-            }
-        }
-        get sorted() {
-            const sorted = new Set();
-            const visit = (node) => {
-                if (sorted.has(node))
-                    return;
-                const deps = this.edges_out.get(node);
-                if (deps) {
-                    for (const [dep] of deps)
-                        visit(dep);
-                }
-                sorted.add(node);
-            };
-            for (const node of this.nodes) {
-                visit(node);
-            }
-            return sorted;
-        }
-        get roots() {
-            const roots = [];
-            for (const node of this.nodes) {
-                if (this.edges_in.get(node)?.size)
-                    continue;
-                roots.push(node);
-            }
-            return roots;
-        }
-        nodes_depth(select) {
-            const stat = new Map();
-            const visit = (node, depth = 0) => {
-                if (stat.has(node))
-                    stat.set(node, select(depth, stat.get(node)));
-                else
-                    stat.set(node, depth);
-                for (const kid of this.edges_out.get(node)?.keys() ?? [])
-                    visit(kid, depth + 1);
-            };
-            for (const root of this.roots)
-                visit(root);
-            return stat;
-        }
-        depth_nodes(select) {
-            const groups = [];
-            for (const [node, depth] of this.nodes_depth(select).entries()) {
-                if (groups[depth])
-                    groups[depth].push(node);
-                else
-                    groups[depth] = [node];
-            }
-            return groups;
-        }
-    }
-    $.$mol_graph = $mol_graph;
-})($ || ($ = {}));
-
-;
-"use strict";
-var $;
-(function ($) {
     function $mol_wire_race(...tasks) {
         const results = tasks.map(task => {
             try {
@@ -9787,10 +9907,12 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    let $hyoo_crus_land_root;
+    (function ($hyoo_crus_land_root) {
+        $hyoo_crus_land_root["data"] = "";
+        $hyoo_crus_land_root["tine"] = "AQAAAAAA";
+    })($hyoo_crus_land_root = $.$hyoo_crus_land_root || ($.$hyoo_crus_land_root = {}));
     class $hyoo_crus_land extends $mol_object {
-        realm() {
-            return null;
-        }
         ref() {
             return this.auth().lord();
         }
@@ -9798,22 +9920,20 @@ var $;
             return this.$.$hyoo_crus_auth.current();
         }
         faces = new $hyoo_crus_face_map;
-        passes = new $mol_wire_dict();
-        gifts = new $mol_wire_dict();
-        gists = new $mol_wire_dict();
+        pass = new $mol_wire_dict();
+        gift = new $mol_wire_dict();
+        sand = new $mol_wire_dict();
         self_all = new $mol_wire_set();
-        self_make(area, idea = Math.floor(Math.random() * 2 ** 48)) {
+        self_make(idea = Math.floor(Math.random() * 2 ** 48)) {
             const auth = this.auth();
             const rank = this.lord_rank(auth.lord());
             if (rank === $hyoo_crus_rank.add)
-                return $hyoo_crus_area_to(auth.peer(), 'data');
+                return auth.peer();
             if (rank === $hyoo_crus_rank.nil)
                 $mol_fail(new Error('Rank too low (nil)'));
             for (let i = 0; i < 4096; ++i) {
                 idea = (idea + 1) % 2 ** 48;
                 if (!idea)
-                    continue;
-                if ($hyoo_crus_area[idea % 2] !== area)
                     continue;
                 const idea_str = $mol_base64_ae_encode(new Uint8Array(new BigUint64Array([BigInt(idea)]).buffer, 0, 6));
                 if (this.self_all.has(idea_str))
@@ -9826,16 +9946,32 @@ var $;
         home() {
             return this.Data($hyoo_crus_home);
         }
-        Data(Node) {
-            return this.Node(Node).Item('');
+        area_make(idea = Math.floor(Math.random() * 2 ** 48)) {
+            const id = $mol_base64_ae_encode(new Uint8Array(new BigUint64Array([BigInt(idea)]).buffer, 0, 6));
+            const ref = $hyoo_crus_ref($hyoo_crus_ref_lord(this.ref()).description + '_' + id);
+            const area = this.$.$hyoo_crus_glob.Land(ref);
+            const errors = area.apply_unit(this.unit_sort([...this.pass.values(), ...this.gift.values()])).filter(Boolean);
+            for (const error of errors)
+                this.$.$mol_log3_warn({
+                    place: `${this}.area_make()`,
+                    message: error,
+                    hint: 'Send it to developer',
+                });
+            area.sync_mine();
+            area.sync_yard();
+            area.bus();
+            return area;
         }
-        Meta() {
-            return this.Node($hyoo_crus_meta).Item('AQAAAAAA');
+        Data(Node) {
+            return this.Node(Node).Item($hyoo_crus_land_root.data);
+        }
+        Tine() {
+            return this.Node($hyoo_crus_list_ref).Item($hyoo_crus_land_root.tine);
         }
         Node(Node) {
             return new $hyoo_crus_fund((head) => {
                 if (head === 'AAAAAAAA')
-                    return this.Node(Node).Item('');
+                    return this.Node(Node).Item($hyoo_crus_land_root.data);
                 return Node.make({
                     land: () => this.sync(),
                     head: $mol_const(head),
@@ -9843,41 +9979,69 @@ var $;
             });
         }
         total() {
-            let total = this.passes.size + this.gifts.size;
-            for (const units of this.gists.values())
-                total += units.size;
+            let total = this.pass.size + this.gift.size;
+            for (const peers of this.sand.values()) {
+                for (const units of peers.values()) {
+                    total += units.size;
+                }
+            }
             return total;
         }
         joined_list() {
-            return [...this.passes.values()].map(unit => unit.lord());
+            return [...this.pass.values()].map(unit => unit.lord());
         }
         key() {
-            const pass = this.passes.get($hyoo_crus_ref_peer(this.ref()));
+            const pass = this.pass.get($hyoo_crus_ref_peer(this.ref()));
             if (!pass)
                 return null;
             return $hyoo_crus_auth.from(pass.auth());
         }
         lord_rank(lord, next) {
-            if (lord === this.ref())
+            if (lord === $hyoo_crus_ref_lord(this.ref()))
                 return $hyoo_crus_rank.law;
-            const prev = this.gifts.get(lord)?.rank()
-                ?? this.gifts.get($hyoo_crus_ref(''))?.rank()
+            const prev = this.gift.get(lord)?.rank()
+                ?? this.gift.get($hyoo_crus_ref(''))?.rank()
                 ?? $hyoo_crus_rank.get;
             if (next === undefined)
                 return prev;
             if (next === prev)
                 return prev;
-            const key = this.passes.get($hyoo_crus_ref_peer(lord))?.auth();
+            const key = this.pass.get($hyoo_crus_ref_peer(lord))?.auth();
             if (!key)
                 $mol_fail(new Error(`No pub key for lord (${lord.description})`));
             this.give($hyoo_crus_auth.from(key), next);
             return next;
         }
         peer_rank(peer) {
-            const auth = this.passes.get(peer);
+            const auth = this.pass.get(peer);
             if (!auth)
                 return $hyoo_crus_rank.get;
             return this.lord_rank(auth.lord());
+        }
+        unit_sort(units) {
+            const dict = new Map();
+            for (const unit of units)
+                dict.set(unit.key(), unit);
+            const lord = $hyoo_crus_ref_lord(this.ref());
+            const graph = new $mol_graph();
+            for (const unit of units) {
+                unit.choose({
+                    pass: pass => {
+                        if (pass.lord() === lord)
+                            return;
+                        graph.link(pass.key(), 'gift:');
+                    },
+                    gift: gift => {
+                        graph.link('pass:' + $hyoo_crus_ref_peer(gift.dest()), gift.key());
+                        graph.link(gift.key(), 'pass:' + gift.peer());
+                    },
+                    sand: sand => {
+                        graph.link(sand.key(), 'pass:' + sand.peer());
+                    },
+                });
+            }
+            graph.acyclic(() => 1);
+            return [...graph.sorted].map(key => dict.get(key)).filter(Boolean);
         }
         delta_unit(face = new $hyoo_crus_face_map) {
             this.loading();
@@ -9888,27 +10052,37 @@ var $;
                     return;
                 if (face.get(peer))
                     return;
-                const pass = this.passes.get(peer);
+                const pass = this.pass.get(peer);
                 if (!pass)
                     $mol_fail(new Error(`No pass for Peer (${peer})`));
                 delta.push(pass);
                 passed.add(peer);
             };
-            for (const [lord, unit] of this.gifts) {
+            for (const [lord, unit] of this.gift) {
                 const time = face.get(unit.peer()) ?? 0;
                 if (time >= unit.time())
                     continue;
                 auth(unit.peer());
                 delta.push(unit);
             }
-            for (const kids of this.gists.values()) {
-                for (const unit of kids.values()) {
-                    const time = face.get(unit.peer()) ?? 0;
-                    if (time >= unit.time())
-                        continue;
-                    auth(unit.peer());
-                    delta.push(unit);
+            for (const kids of this.sand.values()) {
+                for (const peers of kids.values()) {
+                    for (const unit of peers.values()) {
+                        const time = face.get(unit.peer()) ?? 0;
+                        if (time >= unit.time())
+                            continue;
+                        auth(unit.peer());
+                        delta.push(unit);
+                    }
                 }
+            }
+            for (const [peer, unit] of this.pass) {
+                if (passed.has(peer))
+                    continue;
+                if (face.has(unit.peer()))
+                    continue;
+                delta.push(unit);
+                passed.add(peer);
             }
             if (delta.length || this.faces.total <= this.faces.total)
                 return delta;
@@ -9933,13 +10107,13 @@ var $;
                 return null;
             const rocks = [];
             for (let unit of units) {
-                if (unit.kind() !== 'gist')
+                if (unit.kind() !== 'sand')
                     continue;
-                const gist = unit.narrow();
-                if (gist.size() <= 32)
+                const sand = unit.narrow();
+                if (sand.size() <= 32)
                     continue;
-                const rock = this.$.$hyoo_crus_mine.rock(gist.hash()) ?? null;
-                rocks.push([gist.hash(), rock]);
+                const rock = this.$.$hyoo_crus_mine.rock(sand.hash()) ?? null;
+                rocks.push([sand.hash(), rock]);
             }
             return {
                 lands: {
@@ -9963,70 +10137,93 @@ var $;
         apply_unit(delta, skip_check = false) {
             if (!delta.length)
                 return [];
-            const errors = $mol_wire_sync(this).units_verify(delta);
-            if (errors.some(v => v))
-                return errors;
-            return this.apply_unit_trust(delta, skip_check);
+            const doubt = delta.filter(unit => !$hyoo_crus_unit_trusted.has(unit));
+            if (doubt.length) {
+                const errors = $mol_wire_sync(this).units_verify(doubt);
+                if (errors.some(v => v))
+                    return errors;
+            }
+            const errors = this.apply_unit_trust(delta, skip_check);
+            for (const unit of doubt)
+                $hyoo_crus_unit_trusted.add(unit);
+            return errors;
         }
-        async units_verify(delta) {
-            const passes = delta.filter(unit => unit.kind() === 'pass');
-            const auth = new Map(passes.map((unit) => [unit.peer(), unit.auth()]));
+        async units_verify(units) {
+            const passes = units.filter(unit => unit.kind() === 'pass');
+            const auth = new Map(passes.map((unit) => [
+                unit.peer(),
+                $mol_crypto_key_public.from(unit.auth()),
+            ]));
             const mixin = $hyoo_crus_ref_encode(this.ref());
-            return await Promise.all(delta.map(async (unit) => {
+            const mixin_lord = $hyoo_crus_ref_encode($hyoo_crus_ref_lord(this.ref()));
+            return await Promise.all(units.map(async (unit) => {
                 let key_public = this.key_public(unit.peer());
-                if (!key_public) {
-                    const key_serial = auth.get(unit.peer());
-                    if (!key_serial)
-                        return `No public key for peer (${unit.peer()})`;
-                    key_public = $mol_crypto_key_public.from(key_serial);
-                }
-                const sens = unit.sens().slice();
+                if (!key_public)
+                    key_public = auth.get(unit.peer()) ?? null;
+                if (!key_public)
+                    return `No public key for peer (${unit.peer()})`;
+                let sens = unit.sens().slice();
                 for (let i = 0; i < mixin.length; ++i)
-                    sens[i + 14] ^= mixin[i + 14];
-                return await key_public.verify(sens, unit.sign()) ? '' : `Wrong unit sign`;
+                    sens[i + 2] ^= mixin[i];
+                let valid = key_public.verify(sens, unit.sign());
+                if (await valid)
+                    return '';
+                sens = unit.sens().slice();
+                valid = key_public.verify(sens, unit.sign());
+                if (await valid)
+                    return '';
+                return `Wrong unit sign`;
             }));
         }
         apply_unit_trust(delta, skip_check = false) {
             return delta.map(unit => {
-                if (!skip_check) {
-                    const error = this.check_unit(unit);
-                    if (error)
-                        return error;
-                }
                 let need_recheck = false;
                 const res = unit.choose({
                     pass: next => {
+                        const lord = next.lord();
                         const peer = next.peer();
-                        const exists = this.passes.get(peer);
+                        if (!skip_check && this.lord_rank(lord) < $hyoo_crus_rank.add)
+                            return 'Need add rank to join';
+                        const exists = this.pass.get(peer);
                         if (exists)
                             return '';
-                        this.passes.set(peer, next);
+                        this.pass.set(peer, next);
+                        this.faces.time_max(peer, 0);
                         this.faces.total++;
                     },
                     gift: next => {
+                        const peer = next.peer();
                         const dest = next.dest();
-                        const prev = this.gifts.get(dest);
+                        if (!skip_check && this.peer_rank(peer) < $hyoo_crus_rank.law)
+                            return 'Need law rank to change rank';
+                        const prev = this.gift.get(dest);
                         if (prev && $hyoo_crus_gift.compare(prev, next) <= 0)
                             return '';
-                        this.gifts.set(dest, next);
-                        this.faces.time_max(next.peer(), next.time());
+                        this.gift.set(dest, next);
+                        this.faces.time_max(peer, next.time());
                         if (!prev)
                             this.faces.total++;
                         if ((prev?.rank() ?? $hyoo_crus_rank.nil) > next.rank())
                             need_recheck = true;
                     },
-                    gist: next => {
+                    sand: next => {
                         const head = next.head();
+                        const peer = next.peer();
                         const self = next.self();
-                        let units = this.gists.get(head);
+                        if (!skip_check && this.peer_rank(peer) < $hyoo_crus_rank.mod)
+                            return 'Need mod rank to post data';
+                        let peers = this.sand.get(head);
+                        if (!peers)
+                            this.sand.set(head, peers = new $mol_wire_dict);
+                        let units = peers.get(peer);
                         if (!units)
-                            this.gists.set(head, units = new $mol_wire_dict);
+                            peers.set(peer, units = new $mol_wire_dict);
                         const prev = units.get(self);
-                        if (prev && $hyoo_crus_gist.compare(prev, next) <= 0)
+                        if (prev && $hyoo_crus_sand.compare(prev, next) <= 0)
                             return '';
                         units.set(self, next);
                         this.self_all.add(self);
-                        this.faces.time_max(next.peer(), next.time());
+                        this.faces.time_max(peer, next.time());
                         if (!prev)
                             this.faces.total++;
                     },
@@ -10037,129 +10234,116 @@ var $;
             });
         }
         apply_land(land) {
-            return this.apply_unit_trust(land.delta_unit());
+            return this.apply_unit(land.delta_unit());
         }
         recheck() {
-            for (const [peer, pass] of this.passes) {
-                if (!this.check_unit(pass))
+            for (const [peer, pass] of this.pass) {
+                if (this.lord_rank(pass.lord()) >= $hyoo_crus_rank.add)
                     continue;
-                this.passes.delete(peer);
+                this.pass.delete(peer);
                 this.faces.total--;
             }
-            for (const [lord, gift] of this.gifts) {
-                if (!this.check_unit(gift))
+            for (const [lord, gift] of this.gift) {
+                if (this.peer_rank(gift.peer()) >= $hyoo_crus_rank.law)
                     continue;
-                this.gifts.delete(lord);
+                this.gift.delete(lord);
                 this.faces.total--;
             }
-            for (const [head, units] of this.gists) {
-                for (const [self, gist] of units) {
-                    if (!this.check_unit(gist))
+            for (const [head, peers] of this.sand) {
+                for (const [peer, units] of peers) {
+                    if (this.peer_rank(peer) >= $hyoo_crus_rank.mod)
                         continue;
-                    units.delete(self);
-                    this.faces.total--;
+                    peers.delete(peer);
+                    this.faces.total -= units.size;
                 }
             }
         }
-        check_unit(unit) {
-            return unit.choose({
-                pass: next => this.lord_rank(next.lord()) < $hyoo_crus_rank.add ? 'Need add rank to join' : '',
-                gift: next => this.peer_rank(next.peer()) < $hyoo_crus_rank.law ? 'Need law rank to change rank' : '',
-                gist: next => {
-                    if ($hyoo_crus_area_of(next.self()) !== $hyoo_crus_area_of(next.self()))
-                        return 'Need same area';
-                    if ($hyoo_crus_area_to(next.peer(), 'data') === next.self()) {
-                        return this.peer_rank(next.peer()) < $hyoo_crus_rank.add ? 'Need add rank to post self data' : '';
-                    }
-                    else {
-                        if ($hyoo_crus_area_of(next.self()) === 'data') {
-                            return this.peer_rank(next.peer()) < $hyoo_crus_rank.mod ? 'Need mod rank to post any data' : '';
-                        }
-                        else {
-                            return this.peer_rank(next.peer()) < $hyoo_crus_rank.law ? 'Need law rank to post to meta area' : '';
-                        }
-                    }
-                },
-            });
-        }
         fork(preset = { '': $hyoo_crus_rank.get }) {
-            const realm = this.realm();
-            if (!realm)
-                $mol_fail(new Error('Realm is required to fork'));
-            const land = realm.land_grab(preset);
-            land.Meta().Inflow(null).items_vary([this.ref()]);
+            const land = this.$.$hyoo_crus_glob.land_grab(preset);
+            land.Tine().items_vary([this.ref()]);
             return land;
         }
-        gists_ordered(head) {
+        sand_ordered({ head, peer }) {
             this.sync();
             this.secret();
-            const queue = [...this.gists.get(head)?.values() ?? []];
+            const queue = peer
+                ? [...this.sand.get(head)?.get(peer)?.values() ?? []]
+                : [...this.sand.get(head)?.values() ?? []].flatMap(units => [...units.values()]);
             const slices = new Map;
-            for (const gist of queue)
-                slices.set(gist, 0);
-            merge: if ($hyoo_crus_area_of(head) === 'data') {
-                const inflow = (this.Meta().Inflow()?.items_vary().slice().reverse() ?? [])
+            for (const sand of queue)
+                slices.set(sand, 0);
+            merge: if (head !== $hyoo_crus_land_root.tine) {
+                const tines = (this.Tine()?.items_vary().slice().reverse() ?? [])
                     .map($hyoo_crus_vary_cast_ref)
                     .filter($mol_guard_defined);
-                if (!inflow.length)
+                if (!tines.length)
                     break merge;
-                const exists = new Set([...this.gists.get(head)?.keys() ?? []]);
-                const realm = this.realm();
+                const exists = new Set(queue.map(sand => sand.self()));
+                const glob = this.$.$hyoo_crus_glob;
                 let slice = 0;
-                if (realm)
-                    for (const ref of inflow) {
-                        ++slice;
-                        const land = realm.Land(ref);
-                        for (const gist of land.gists_ordered(head)) {
-                            if (exists.has(gist.self()))
-                                continue;
-                            queue.push(gist);
-                            exists.add(gist.self());
-                            slices.set(gist, slice);
-                        }
+                for (const ref of tines) {
+                    ++slice;
+                    const land = glob.Land(ref);
+                    for (const sand of land.sand_ordered({ head, peer })) {
+                        if (exists.has(sand.self()))
+                            continue;
+                        queue.push(sand);
+                        exists.add(sand.self());
+                        slices.set(sand, slice);
                     }
+                }
             }
-            if (queue.length === 0)
+            if (queue.length < 2)
                 return queue;
-            if (queue.length === 1)
-                return queue[0].nil() ? [] : queue;
             const compare = (left, right) => {
-                return (slices.get(left) - slices.get(right)) || $hyoo_crus_gist.compare(left, right);
+                return (slices.get(left) - slices.get(right)) || $hyoo_crus_sand.compare(left, right);
             };
             queue.sort(compare);
             let entry = {
-                gist: null,
+                sand: null,
                 next: '',
                 prev: '',
             };
-            const graph = new Map([['', entry]]);
+            const key = peer === null ? (sand) => sand.key() : (sand) => sand.self();
+            const by_key = new Map([['', entry]]);
+            const by_self = new Map([['', entry]]);
             while (queue.length) {
                 const last = queue.pop();
-                graph.get(entry.prev).next = last.self();
-                graph.set(last.self(), { gist: last, next: '', prev: entry.prev });
-                entry.prev = last.self();
+                by_key.get(entry.prev).next = key(last);
+                const item = { sand: last, next: '', prev: entry.prev };
+                by_key.set(key(last), item);
+                const exists = by_self.get(last.self());
+                if (!exists || compare(exists.sand, last) < 0) {
+                    by_self.set(last.self(), item);
+                }
+                entry.prev = key(last);
                 for (let cursor = queue.length - 1; cursor >= 0; --cursor) {
                     const kid = queue[cursor];
-                    let lead = graph.get(kid.lead());
+                    let lead = by_self.get(kid.lead());
                     if (!lead)
                         continue;
-                    while (lead.next && (compare(graph.get(lead.next).gist, kid) < 0))
-                        lead = graph.get(lead.next);
-                    const exists = graph.get(kid.self());
-                    if (exists) {
-                        if ((lead.gist?.self() ?? '') === exists.prev) {
-                            exists.gist = kid;
+                    while (lead.next && (compare(by_key.get(lead.next).sand, kid) < 0))
+                        lead = by_key.get(lead.next);
+                    const exists1 = by_key.get(key(kid));
+                    if (exists1) {
+                        if ((lead.sand ? key(lead.sand) : '') === exists1.prev) {
+                            exists1.sand = kid;
                             if (cursor === queue.length - 1)
                                 queue.pop();
                             continue;
                         }
-                        graph.get(exists.prev).next = exists.next;
-                        graph.get(exists.next).prev = exists.prev;
+                        by_key.get(exists1.prev).next = exists1.next;
+                        by_key.get(exists1.next).prev = exists1.prev;
                     }
-                    const follower = graph.get(lead.next);
-                    follower.prev = kid.self();
-                    graph.set(kid.self(), { gist: kid, next: lead.next, prev: lead.gist?.self() ?? '' });
-                    lead.next = kid.self();
+                    const follower = by_key.get(lead.next);
+                    follower.prev = key(kid);
+                    const item = { sand: kid, next: lead.next, prev: lead.sand ? key(lead.sand) : '' };
+                    by_key.set(key(kid), item);
+                    const exists2 = by_self.get(kid.self());
+                    if (!exists2 || compare(exists2.sand, kid) < 0) {
+                        by_self.set(kid.self(), item);
+                    }
+                    lead.next = key(kid);
                     if (cursor === queue.length - 1)
                         queue.pop();
                     cursor = queue.length;
@@ -10167,20 +10351,21 @@ var $;
             }
             const res = [];
             while (entry.next) {
-                entry = graph.get(entry.next);
-                res.push(entry.gist);
+                entry = by_key.get(entry.next);
+                res.push(entry.sand);
             }
             return res;
         }
         join() {
             const auth = this.auth();
-            const prev = this.passes.get(auth.peer());
+            const prev = this.pass.get(auth.peer());
             if (prev)
                 return prev;
             const next = new $hyoo_crus_pass;
+            $hyoo_crus_unit_trusted.add(next);
             next.auth(auth.public().asArray());
             next._land = this;
-            const error = this.apply_unit_trust([next])[0];
+            const error = this.apply_unit([next])[0];
             if (error)
                 $mol_fail(new Error(error));
             this.broadcast();
@@ -10190,6 +10375,7 @@ var $;
             this.join();
             const auth = this.auth();
             const unit = new $hyoo_crus_gift;
+            $hyoo_crus_unit_trusted.add(unit);
             unit.rank(rank);
             unit.time(this.faces.tick());
             unit.peer(auth.peer());
@@ -10208,7 +10394,7 @@ var $;
                     }
                 }
             }
-            const error = this.apply_unit_trust([unit])[0];
+            const error = this.apply_unit([unit])[0];
             if (error)
                 $mol_fail(new Error(error));
             this.broadcast();
@@ -10219,7 +10405,8 @@ var $;
                 vary = $hyoo_crus_ref_relate(this.ref(), vary);
             this.join();
             const auth = this.auth();
-            const unit = new $hyoo_crus_gist;
+            const unit = new $hyoo_crus_sand;
+            $hyoo_crus_unit_trusted.add(unit);
             unit.time(this.faces.tick());
             unit.peer(auth.peer());
             unit.lead(lead);
@@ -10237,23 +10424,23 @@ var $;
                 else
                     unit.data(bin, tip, tag);
             }
-            unit.self(self || this.self_make($hyoo_crus_area_of(head), unit.idea()));
-            const error = this.apply_unit_trust([unit])[0];
+            unit.self(self || this.self_make(unit.idea()));
+            const error = this.apply_unit([unit])[0];
             if (error)
                 $mol_fail(new Error(error));
             this.broadcast();
             return unit;
         }
-        gist_move(gist, head, seat) {
-            if (gist.nil())
-                $mol_fail(new RangeError(`Can't move wiped gist`));
-            const units = this.gists_ordered(head).filter(unit => !unit.nil());
+        sand_move(sand, head, seat, peer = '') {
+            if (sand.tip() === 'nil')
+                $mol_fail(new RangeError(`Can't move wiped sand`));
+            const units = this.sand_ordered({ head, peer }).filter(unit => unit.tip() !== 'nil');
             if (seat > units.length)
                 $mol_fail(new RangeError(`Seat (${seat}) out of units length (${units.length})`));
             const lead = seat ? units[seat - 1].self() : '';
-            const vary = this.gist_decode(gist);
-            if (gist.head() === head) {
-                const seat_prev = units.indexOf(gist);
+            const vary = this.sand_decode(sand);
+            if (sand.head() === head) {
+                const seat_prev = units.indexOf(sand);
                 if (seat === seat_prev)
                     return;
                 if (seat === seat_prev + 1)
@@ -10261,20 +10448,21 @@ var $;
                 const prev = seat_prev ? units[seat_prev - 1].self() : '';
                 const next = units[seat_prev + 1];
                 if (next)
-                    this.post(prev, head, next.self(), this.gist_decode(next), next.tag());
+                    this.post(prev, head, next.self(), this.sand_decode(next), next.tag());
             }
             else {
-                this.gist_wipe(gist);
+                this.sand_wipe(sand);
             }
-            this.post(lead, head, gist.self(), vary, gist.tag());
+            this.post(lead, head, sand.self(), vary, sand.tag());
         }
-        gist_wipe(gist) {
-            const units = this.gists_ordered(gist.head()).filter(unit => !unit.nil());
-            const seat = units.indexOf(gist);
-            this.post(seat ? units[seat - 1].self() : '', gist.head(), gist.self(), null, 'term');
+        sand_wipe(sand, peer = '') {
+            const head = sand.head();
+            const units = this.sand_ordered({ head, peer }).filter(unit => unit.tip() !== 'nil');
+            const seat = units.indexOf(sand);
+            this.post(seat ? units[seat - 1].self() : '', head, sand.self(), null, 'term');
         }
         broadcast() {
-            this.realm()?.yard().lands_neonatals.add(this.ref());
+            this.$.$hyoo_crus_glob.yard().lands_news.add(this.ref());
         }
         sync() {
             this.loading();
@@ -10283,47 +10471,27 @@ var $;
             this.bus();
             return this;
         }
+        destructor() {
+            this.$.$hyoo_crus_glob.yard().forget_land(this);
+        }
         sync_mine() {
             return new $mol_wire_atom('', () => this.saving()).fresh();
         }
         sync_yard() {
-            return new $mol_wire_atom('', () => this.realm()?.yard().sync_land(this.ref())).fresh();
+            return new $mol_wire_atom('', () => this.$.$hyoo_crus_glob.yard().sync_land(this.ref())).fresh();
         }
         bus() {
             return new this.$.$mol_bus(`$hyoo_crus_land:${this.ref().description}`, $mol_wire_async(bins => {
-                this.apply_unit_trust(bins.map(bin => {
+                this.apply_unit(bins.map(bin => {
                     const unit = new $hyoo_crus_unit(bin).narrow();
+                    $hyoo_crus_unit_trusted.add(unit);
                     this.$.$hyoo_crus_mine.units_persisted.add(unit);
                     return unit;
                 }));
             }));
         }
         loading() {
-            $mol_wire_solid();
-            const realm = this.realm();
-            if (!realm)
-                return;
-            let units = realm.$.$hyoo_crus_mine.units(this.ref()) ?? [];
-            const dict = new Map();
-            for (const unit of units)
-                dict.set(unit.key(), unit);
-            const graph = new $mol_graph();
-            for (const unit of units) {
-                unit.choose({
-                    pass: pass => {
-                        graph.link(pass.key(), '');
-                    },
-                    gift: gift => {
-                        graph.link($hyoo_crus_ref_peer(gift.dest()), gift.key());
-                        graph.link(gift.key(), gift.peer());
-                    },
-                    gist: gist => {
-                        graph.link(gist.key(), gist.peer());
-                    },
-                });
-            }
-            graph.acyclic(() => 1);
-            units = [...graph.sorted].map(key => dict.get(key)).filter(Boolean);
+            let units = this.unit_sort(this.$.$hyoo_crus_mine.units(this.ref()) ?? []);
             $mol_wire_sync(this.$).$mol_log3_rise({
                 place: this,
                 message: 'Load Unit',
@@ -10344,29 +10512,31 @@ var $;
             const encoding = [];
             const signing = [];
             const persisting = [];
-            for (const pass of this.passes.values()) {
+            for (const pass of this.pass.values()) {
                 if (!pass.signed())
                     signing.push(pass);
                 if (!mine.units_persisted.has(pass))
                     persisting.push(pass);
             }
-            for (const gift of this.gifts.values()) {
+            for (const gift of this.gift.values()) {
                 if (!gift.signed())
                     signing.push(gift);
                 if (!mine.units_persisted.has(gift))
                     persisting.push(gift);
             }
-            for (const kids of this.gists.values()) {
-                for (const gist of kids.values()) {
-                    if (!gist.signed()) {
-                        encoding.push(gist);
-                        signing.push(gist);
+            for (const kids of this.sand.values()) {
+                for (const units of kids.values()) {
+                    for (const sand of units.values()) {
+                        if (!sand.signed()) {
+                            encoding.push(sand);
+                            signing.push(sand);
+                        }
+                        if (!mine.units_persisted.has(sand))
+                            persisting.push(sand);
                     }
-                    if (!mine.units_persisted.has(gist))
-                        persisting.push(gist);
                 }
             }
-            $mol_wire_race(...encoding.map(unit => () => this.gist_encode(unit)));
+            $mol_wire_race(...encoding.map(unit => () => this.sand_encode(unit)));
             $mol_wire_race(...signing.map(unit => () => this.unit_sign(unit)));
             if (persisting.length) {
                 mine.units(this.ref(), persisting);
@@ -10385,49 +10555,49 @@ var $;
             const mixin = $hyoo_crus_ref_encode(unit._land.ref());
             const sens = unit.sens().slice();
             for (let i = 0; i < mixin.length; ++i)
-                sens[i + 14] ^= mixin[i + 14];
-            const sign = new Uint8Array(key.sign(sens));
+                sens[i + 2] ^= mixin[i];
+            const sign = key.sign(sens);
             unit.sign(sign);
         }
-        gist_encode(gist) {
-            if (gist._open === null)
-                return gist;
-            if (gist.nil())
-                return gist;
-            let bin = gist._open;
-            const secret = gist._land.secret();
+        sand_encode(sand) {
+            if (sand._open === null)
+                return sand;
+            if (sand.tip() === 'nil')
+                return sand;
+            let bin = sand._open;
+            const secret = sand._land.secret();
             if (secret)
-                bin = new Uint8Array($mol_wire_sync(secret).encrypt(bin, gist.salt()));
+                bin = $mol_wire_sync(secret).encrypt(bin, sand.salt());
             if (bin.byteLength > 32)
-                gist.hash(this.$.$hyoo_crus_mine.rock_save(bin), gist.tip(), gist.tag());
+                sand.hash(this.$.$hyoo_crus_mine.rock_save(bin), sand.tip(), sand.tag());
             else
-                gist.data(bin, gist.tip(), gist.tag());
-            return gist;
+                sand.data(bin, sand.tip(), sand.tag());
+            return sand;
         }
-        gist_decode(gist) {
-            let vary = this.gist_decode_raw(gist);
+        sand_decode(sand) {
+            let vary = this.sand_decode_raw(sand);
             if (typeof vary === 'symbol')
                 vary = $hyoo_crus_ref_resolve(this.ref(), vary);
             return vary;
         }
-        gist_decode_raw(gist) {
-            if (this.gists.get(gist.head())?.get(gist.self()) !== gist) {
-                for (const id of this.Meta().Inflow()?.items_vary() ?? []) {
-                    const vary = this.realm()?.Land($hyoo_crus_vary_cast_ref(id)).gist_decode_raw(gist);
+        sand_decode_raw(sand) {
+            if (this.sand.get(sand.head())?.get(sand.peer())?.get(sand.self()) !== sand) {
+                for (const id of this.Tine().items_vary() ?? []) {
+                    const vary = this.$.$hyoo_crus_glob.Land($hyoo_crus_vary_cast_ref(id)).sand_decode_raw(sand);
                     if (vary !== undefined)
                         return vary;
                 }
                 return undefined;
             }
             const secret = this.secret();
-            if (gist._vary !== undefined)
-                return gist._vary;
-            if (gist._open !== null)
-                return gist._vary = $hyoo_crus_vary_decode({ tip: gist.tip(), bin: gist._open });
-            let bin = gist.size() > 32 ? this.$.$hyoo_crus_mine.rock(gist.hash()) : gist.data();
-            if (secret && bin && !gist.nil()) {
+            if (sand._vary !== undefined)
+                return sand._vary;
+            if (sand._open !== null)
+                return sand._vary = $hyoo_crus_vary_decode({ tip: sand.tip(), bin: sand._open });
+            let bin = sand.size() > 32 ? this.$.$hyoo_crus_mine.rock(sand.hash()) : sand.data();
+            if (secret && bin && sand.tip() !== 'nil') {
                 try {
-                    bin = new Uint8Array($mol_wire_sync(secret).decrypt(bin, gist.salt()));
+                    bin = $mol_wire_sync(secret).decrypt(bin, sand.salt());
                 }
                 catch (error) {
                     if ($mol_fail_catch(error)) {
@@ -10438,22 +10608,21 @@ var $;
                     }
                 }
             }
-            gist._open = bin;
-            return gist._vary = (bin ? $hyoo_crus_vary_decode({ tip: gist.tip(), bin }) : null);
+            sand._open = bin;
+            return sand._vary = (bin ? $hyoo_crus_vary_decode({ tip: sand.tip(), bin }) : null);
         }
         key_public(peer) {
-            const key = this.passes.get(peer)?.auth();
+            const key = this.pass.get(peer)?.auth();
             return key ? $mol_crypto_key_public.from(key) : null;
         }
         secret_mutual(key_public) {
             return $mol_wire_sync($mol_crypto_secret).derive(this.auth().toString(), key_public);
         }
         encryptable() {
-            return !this.gists.size;
+            return !this.sand.size;
         }
         encrypted(next) {
-            $mol_wire_solid();
-            const gift = this.gifts.get(this.ref());
+            const gift = this.gift.get(this.ref());
             const prev = gift?.bill().some(b => b) ?? false;
             if (next === undefined)
                 return prev;
@@ -10467,14 +10636,15 @@ var $;
             const secret_land = $mol_wire_sync(secret).serial();
             const secret_mutual = auth.secret_mutual(auth.public().toString());
             const unit = new $hyoo_crus_gift;
+            $hyoo_crus_unit_trusted.add(unit);
             unit.rank($hyoo_crus_rank.law);
             unit.time(this.faces.tick());
             unit.peer(auth.peer());
             unit.dest(auth.lord());
             unit._land = this;
             const secret_closed = $mol_wire_sync(secret_mutual).encrypt(secret_land, unit.salt());
-            unit.bill().set(new Uint8Array(secret_closed));
-            const error = this.apply_unit_trust([unit])[0];
+            unit.bill().set(secret_closed);
+            const error = this.apply_unit([unit])[0];
             if (error)
                 $mol_fail(new Error(error));
             return next;
@@ -10483,7 +10653,7 @@ var $;
             if (!this.encrypted())
                 return null;
             const auth = this.auth();
-            const gift = this.gifts.get(auth.lord());
+            const gift = this.gift.get(auth.lord());
             if (!gift)
                 return $mol_fail(new Error(`Access denied`));
             const bill = gift.bill();
@@ -10499,19 +10669,21 @@ var $;
             this.saving();
             const units = [];
             const rocks = [];
-            for (const pass of this.passes.values())
+            for (const pass of this.pass.values())
                 units.push(pass);
-            for (const gift of this.gifts.values())
+            for (const gift of this.gift.values())
                 units.push(gift);
-            for (const kids of this.gists.values()) {
-                for (const gist of kids.values()) {
-                    units.push(gist);
-                    if (gist.size() <= 32)
-                        continue;
-                    const rock = this.$.$hyoo_crus_mine.rock(gist.hash());
-                    if (!rock)
-                        continue;
-                    rocks.push([gist.hash(), rock]);
+            for (const heads of this.sand.values()) {
+                for (const sands of heads.values()) {
+                    for (const sand of sands.values()) {
+                        units.push(sand);
+                        if (sand.size() <= 32)
+                            continue;
+                        const rock = this.$.$hyoo_crus_mine.rock(sand.hash());
+                        if (!rock)
+                            continue;
+                        rocks.push([sand.hash(), rock]);
+                    }
                 }
             }
             return {
@@ -10528,11 +10700,14 @@ var $;
         $mol_action
     ], $hyoo_crus_land.prototype, "self_make", null);
     __decorate([
+        $mol_action
+    ], $hyoo_crus_land.prototype, "area_make", null);
+    __decorate([
         $mol_mem_key
     ], $hyoo_crus_land.prototype, "Data", null);
     __decorate([
         $mol_mem
-    ], $hyoo_crus_land.prototype, "Meta", null);
+    ], $hyoo_crus_land.prototype, "Tine", null);
     __decorate([
         $mol_mem_key
     ], $hyoo_crus_land.prototype, "Node", null);
@@ -10562,7 +10737,7 @@ var $;
     ], $hyoo_crus_land.prototype, "fork", null);
     __decorate([
         $mol_mem_key
-    ], $hyoo_crus_land.prototype, "gists_ordered", null);
+    ], $hyoo_crus_land.prototype, "sand_ordered", null);
     __decorate([
         $mol_action
     ], $hyoo_crus_land.prototype, "join", null);
@@ -10574,10 +10749,10 @@ var $;
     ], $hyoo_crus_land.prototype, "post", null);
     __decorate([
         $mol_action
-    ], $hyoo_crus_land.prototype, "gist_move", null);
+    ], $hyoo_crus_land.prototype, "sand_move", null);
     __decorate([
         $mol_action
-    ], $hyoo_crus_land.prototype, "gist_wipe", null);
+    ], $hyoo_crus_land.prototype, "sand_wipe", null);
     __decorate([
         $mol_mem
     ], $hyoo_crus_land.prototype, "sync", null);
@@ -10601,13 +10776,13 @@ var $;
     ], $hyoo_crus_land.prototype, "unit_sign", null);
     __decorate([
         $mol_mem_key
-    ], $hyoo_crus_land.prototype, "gist_encode", null);
+    ], $hyoo_crus_land.prototype, "sand_encode", null);
     __decorate([
         $mol_mem_key
-    ], $hyoo_crus_land.prototype, "gist_decode", null);
+    ], $hyoo_crus_land.prototype, "sand_decode", null);
     __decorate([
         $mol_mem_key
-    ], $hyoo_crus_land.prototype, "gist_decode_raw", null);
+    ], $hyoo_crus_land.prototype, "sand_decode_raw", null);
     __decorate([
         $mol_mem_key
     ], $hyoo_crus_land.prototype, "key_public", null);
@@ -10634,8 +10809,9 @@ var $;
     (function ($hyoo_crus_unit_kind) {
         $hyoo_crus_unit_kind[$hyoo_crus_unit_kind["pass"] = $hyoo_crus_part.pass] = "pass";
         $hyoo_crus_unit_kind[$hyoo_crus_unit_kind["gift"] = $hyoo_crus_part.gift] = "gift";
-        $hyoo_crus_unit_kind[$hyoo_crus_unit_kind["gist"] = $hyoo_crus_part.gist] = "gist";
+        $hyoo_crus_unit_kind[$hyoo_crus_unit_kind["sand"] = $hyoo_crus_part.sand] = "sand";
     })($hyoo_crus_unit_kind = $.$hyoo_crus_unit_kind || ($.$hyoo_crus_unit_kind = {}));
+    $.$hyoo_crus_unit_trusted = new WeakSet();
     class $hyoo_crus_unit extends $mol_buffer {
         static size = 128;
         constructor(buffer = new ArrayBuffer($hyoo_crus_unit.size), byteOffset = 0, byteLength = buffer.byteLength) {
@@ -10643,8 +10819,10 @@ var $;
         }
         kind() {
             const val = this.uint8(0);
+            if (!val)
+                $mol_fail(new Error(`Empty unit`));
             if ((val & 1) === 0)
-                return 'gist';
+                return 'sand';
             const kind = $hyoo_crus_unit_kind[val];
             if (kind)
                 return kind;
@@ -10655,7 +10833,7 @@ var $;
             const Unit = {
                 pass: $hyoo_crus_pass,
                 gift: $hyoo_crus_gift,
-                gist: $hyoo_crus_gist,
+                sand: $hyoo_crus_sand,
             }[way];
             if (this instanceof Unit)
                 return ways[way](this);
@@ -10664,7 +10842,7 @@ var $;
         }
         narrow() {
             return this.choose({
-                gist: unit => unit,
+                sand: unit => unit,
                 pass: unit => unit,
                 gift: unit => unit,
             });
@@ -10709,7 +10887,7 @@ var $;
         }
         mix(mixin) {
             for (let i = 0; i < mixin.length; ++i) {
-                this.uint8(14 + i, this.uint8(14 + i) ^ mixin[i]);
+                this.uint8(2 + i, this.uint8(2 + i) ^ mixin[i]);
             }
         }
         sign(next) {
@@ -10745,7 +10923,7 @@ var $;
                 return this._lord = this.id12(2, next);
         }
         key() {
-            return this.id6(2);
+            return `pass:${this.id6(2)}`;
         }
         auth(next) {
             const prev = new Uint8Array(this.buffer, this.byteOffset, 64);
@@ -10794,7 +10972,7 @@ var $;
                 return this._dest = this.id12(14, next);
         }
         key() {
-            return this.dest().description;
+            return `gift:${this.dest().description}`;
         }
         bill() {
             return new Uint8Array(this.buffer, this.byteOffset + 32, 32);
@@ -10822,30 +11000,30 @@ var $;
 "use strict";
 var $;
 (function ($) {
-    let $hyoo_crus_gist_tag;
-    (function ($hyoo_crus_gist_tag) {
-        $hyoo_crus_gist_tag[$hyoo_crus_gist_tag["term"] = 0] = "term";
-        $hyoo_crus_gist_tag[$hyoo_crus_gist_tag["solo"] = 1] = "solo";
-        $hyoo_crus_gist_tag[$hyoo_crus_gist_tag["vals"] = 2] = "vals";
-        $hyoo_crus_gist_tag[$hyoo_crus_gist_tag["keys"] = 3] = "keys";
-    })($hyoo_crus_gist_tag = $.$hyoo_crus_gist_tag || ($.$hyoo_crus_gist_tag = {}));
-    class $hyoo_crus_gist extends $hyoo_crus_unit {
+    let $hyoo_crus_sand_tag;
+    (function ($hyoo_crus_sand_tag) {
+        $hyoo_crus_sand_tag[$hyoo_crus_sand_tag["term"] = 0] = "term";
+        $hyoo_crus_sand_tag[$hyoo_crus_sand_tag["solo"] = 1] = "solo";
+        $hyoo_crus_sand_tag[$hyoo_crus_sand_tag["vals"] = 2] = "vals";
+        $hyoo_crus_sand_tag[$hyoo_crus_sand_tag["keys"] = 3] = "keys";
+    })($hyoo_crus_sand_tag = $.$hyoo_crus_sand_tag || ($.$hyoo_crus_sand_tag = {}));
+    class $hyoo_crus_sand extends $hyoo_crus_unit {
         _vary = undefined;
         _open = null;
-        hint(tip = 'null', tag = 'term') {
-            this.uint8(0, ($hyoo_crus_gist_tag[tag] << 1) | ($hyoo_crus_vary_tip[tip] << 3));
+        hint(tip = 'nil', tag = 'term') {
+            this.uint8(0, ($hyoo_crus_sand_tag[tag] << 1) | ($hyoo_crus_vary_tip[tip] << 3));
         }
         tag() {
-            return $hyoo_crus_gist_tag[(this.uint8(0) >> 1) & 0b11];
+            return $hyoo_crus_sand_tag[(this.uint8(0) >> 1) & 0b11];
         }
         tip() {
-            return $hyoo_crus_vary_tip[this.uint8(0) >> 3];
+            const tip = $hyoo_crus_vary_tip[this.uint8(0) >> 3];
+            if (!tip)
+                $mol_fail(new Error('Empty tip'));
+            return tip;
         }
         utf() {
             return Boolean(this.uint8(0) & 0b10000000);
-        }
-        nil() {
-            return !this.uint16(0);
         }
         size(next) {
             return this.uint8(1, next);
@@ -10853,22 +11031,22 @@ var $;
         time(next) {
             return this.uint48(8, next);
         }
-        _self;
-        self(next) {
-            if (next === undefined && this._self !== undefined)
-                return this._self;
-            else
-                return this._self = this.id6(14, next);
-        }
         _head;
         head(next) {
             if (next === undefined && this._head !== undefined)
                 return this._head;
             else
-                return this._head = this.id6(20, next);
+                return this._head = this.id6(14, next);
+        }
+        _self;
+        self(next) {
+            if (next === undefined && this._self !== undefined)
+                return this._self;
+            else
+                return this._self = this.id6(20, next);
         }
         key() {
-            return `${this.head()}/${this.self()}`;
+            return `sand:${this.head()}/${this.peer()}/${this.self()}`;
         }
         _lead;
         lead(next) {
@@ -10877,7 +11055,7 @@ var $;
             else
                 return this._lead = this.id6(26, next);
         }
-        hash(next, tip = 'null', tag = 'term') {
+        hash(next, tip = 'nil', tag = 'term') {
             const bin = new Uint8Array(this.buffer, this.byteOffset + 32, 20);
             if (next !== undefined) {
                 this.hint(tip, tag);
@@ -10891,7 +11069,7 @@ var $;
         meta() {
             return new Uint8Array(this.buffer, this.byteOffset + 42, 12);
         }
-        data(next, tip = 'null', tag = 'term') {
+        data(next, tip = 'nil', tag = 'term') {
             if (next === undefined) {
                 const size = this.size();
                 if (size > 32)
@@ -10942,7 +11120,7 @@ var $;
             }[this.tag()], this.tip(), ' ', $mol_dev_format_native(this._vary));
         }
     }
-    $.$hyoo_crus_gist = $hyoo_crus_gist;
+    $.$hyoo_crus_sand = $hyoo_crus_sand;
 })($ || ($ = {}));
 
 ;
@@ -10952,13 +11130,13 @@ var $;
     function $mol_reconcile({ prev, from, to, next, equal, drop, insert, update, }) {
         if (!update)
             update = (next, prev, lead) => insert(next, drop(prev, lead));
+        if (to > prev.length)
+            to = prev.length;
+        if (from > to)
+            from = to;
         let p = from;
         let n = 0;
         let lead = p ? prev[p - 1] : null;
-        if (to > prev.length)
-            $mol_fail(new RangeError(`To(${to}) greater then length(${prev.length})`));
-        if (from > to)
-            $mol_fail(new RangeError(`From(${to}) greater then to(${to})`));
         while (p < to || n < next.length) {
             if (p < to && n < next.length && equal(next[n], prev[p])) {
                 lead = prev[p];
@@ -10988,11 +11166,11 @@ var $;
 var $;
 (function ($) {
     class $hyoo_crus_list_vary extends $hyoo_crus_node {
-        static tag = $hyoo_crus_gist_tag[$hyoo_crus_gist_tag.vals];
+        static tag = $hyoo_crus_sand_tag[$hyoo_crus_sand_tag.vals];
         items_vary(next, tag = 'term') {
             const units = this.units();
             if (next === undefined)
-                return units.map(unit => this.land().gist_decode(unit));
+                return units.map(unit => this.land().sand_decode(unit));
             this.splice(next, 0, units.length, tag);
             return this.items_vary();
         }
@@ -11003,15 +11181,15 @@ var $;
                 from,
                 to,
                 next,
-                equal: (next, prev) => $mol_compare_deep(this.land().gist_decode(prev), next),
+                equal: (next, prev) => $mol_compare_deep(this.land().sand_decode(prev), next),
                 drop: (prev, lead) => this.land().post(lead?.self() ?? '', prev.head(), prev.self(), null),
-                insert: (next, lead) => this.land().post(lead?.self() ?? '', this.head(), land.self_make($hyoo_crus_area_of(this.head())), next, tag),
+                insert: (next, lead) => this.land().post(lead?.self() ?? '', this.head(), land.self_make(), next, tag),
                 update: (next, prev, lead) => this.land().post(lead?.self() ?? '', prev.head(), prev.self(), next, prev.tag()),
             });
         }
         find(vary) {
             for (const unit of this.units()) {
-                if ($mol_compare_deep(this.land().gist_decode(unit), vary))
+                if ($mol_compare_deep(this.land().sand_decode(unit), vary))
                     return unit;
             }
             return null;
@@ -11033,7 +11211,7 @@ var $;
         cut(vary) {
             const units = [...this.units()];
             for (let i = 0; i < units.length; ++i) {
-                if (!$mol_compare_deep(this.land().gist_decode(units[i]), vary))
+                if (!$mol_compare_deep(this.land().sand_decode(units[i]), vary))
                     continue;
                 this.land().post(units[i - 1]?.self() ?? 0, units[i].head(), units[i].self(), null);
                 units.splice(i, 1);
@@ -11041,10 +11219,10 @@ var $;
             }
         }
         move(from, to) {
-            this.land().gist_move(this.units()[from], this.head(), to);
+            this.land().sand_move(this.units()[from], this.head(), to);
         }
         wipe(seat) {
-            this.land().gist_wipe(this.units()[seat]);
+            this.land().sand_wipe(this.units()[seat]);
         }
         node_make(Node, vary, tag = 'term') {
             this.splice([vary], undefined, undefined, tag);
@@ -11058,18 +11236,24 @@ var $;
     __decorate([
         $mol_mem
     ], $hyoo_crus_list_vary.prototype, "items_vary", null);
+    __decorate([
+        $mol_action
+    ], $hyoo_crus_list_vary.prototype, "splice", null);
     $.$hyoo_crus_list_vary = $hyoo_crus_list_vary;
     function $hyoo_crus_list(parse) {
-        class Narrow extends $hyoo_crus_list_vary {
+        class $hyoo_crus_list extends $hyoo_crus_list_vary {
             static parse = parse;
             items(next) {
                 return this.items_vary(next?.map(parse)).map(parse);
             }
+            static toString() {
+                return this === $hyoo_crus_list ? '$hyoo_crus_list<' + this.$.$mol_func_name(parse) + '>' : super.toString();
+            }
         }
         __decorate([
             $mol_mem
-        ], Narrow.prototype, "items", null);
-        return Narrow;
+        ], $hyoo_crus_list.prototype, "items", null);
+        return $hyoo_crus_list;
     }
     $.$hyoo_crus_list = $hyoo_crus_list;
     class $hyoo_crus_list_bin extends $hyoo_crus_list($hyoo_crus_vary_cast_bin) {
@@ -11115,27 +11299,45 @@ var $;
     }
     $.$hyoo_crus_list_ref_base = $hyoo_crus_list_ref_base;
     function $hyoo_crus_list_ref_to(Value) {
-        class Ref extends $hyoo_crus_list_ref_base {
-            static Value = Value;
-            static toJSON() {
-                return '$hyoo_crus_list_to<' + Value() + '>';
+        class $hyoo_crus_list_ref_to extends $hyoo_crus_list_ref_base {
+            static Value = $mol_memo.func(Value);
+            static toString() {
+                return this === $hyoo_crus_list_ref_to ? '$hyoo_crus_list_ref_to<' + Value() + '>' : super.toString();
             }
             remote_list(next) {
-                const realm = this.realm();
+                const glob = this.$.$hyoo_crus_glob;
                 const Node = Value();
                 return this.items_vary(next?.map(item => item.ref()))
                     .map($hyoo_crus_vary_cast_ref)
                     .filter($mol_guard_defined)
-                    .map(ref => realm.Node(ref, Node));
+                    .map(ref => glob.Node(ref, Node));
             }
-            remote_make(preset) {
-                const land = this.realm().land_grab(preset);
-                this.splice([land.ref()]);
-                return land.Node(Value()).Item('');
+            remote_add(item) {
+                this.add(item.ref());
+            }
+            make(config) {
+                if (config === null) {
+                    const self = this.land().self_make();
+                    const node = this.land().Node(Value()).Item(self);
+                    this.splice([node.ref()]);
+                    return node;
+                }
+                else if (config instanceof $hyoo_crus_land) {
+                    const land = config.area_make();
+                    this.splice([land.ref()]);
+                    return land.Node(Value()).Item('');
+                }
+                else if (config) {
+                    const land = this.$.$hyoo_crus_glob.land_grab(config);
+                    this.splice([land.ref()]);
+                    return land.Node(Value()).Item('');
+                }
+            }
+            remote_make(config) {
+                return this.make(config);
             }
             local_make(idea) {
-                const area = $hyoo_crus_area_of(this.head());
-                const self = this.land().self_make(area, idea);
+                const self = this.land().self_make(idea);
                 const node = this.land().Node(Value()).Item(self);
                 this.splice([node.ref()]);
                 return node;
@@ -11143,14 +11345,14 @@ var $;
         }
         __decorate([
             $mol_mem
-        ], Ref.prototype, "remote_list", null);
+        ], $hyoo_crus_list_ref_to.prototype, "remote_list", null);
         __decorate([
             $mol_action
-        ], Ref.prototype, "remote_make", null);
+        ], $hyoo_crus_list_ref_to.prototype, "remote_add", null);
         __decorate([
             $mol_action
-        ], Ref.prototype, "local_make", null);
-        return Ref;
+        ], $hyoo_crus_list_ref_to.prototype, "local_make", null);
+        return $hyoo_crus_list_ref_to;
     }
     $.$hyoo_crus_list_ref_to = $hyoo_crus_list_ref_to;
 })($ || ($ = {}));
@@ -11159,8 +11361,8 @@ var $;
 "use strict";
 var $;
 (function ($) {
-    class $hyoo_crus_dict extends ($hyoo_crus_list_vary) {
-        static tag = $hyoo_crus_gist_tag[$hyoo_crus_gist_tag.keys];
+    class $hyoo_crus_dict extends $hyoo_crus_list_vary {
+        static tag = $hyoo_crus_sand_tag[$hyoo_crus_sand_tag.keys];
         keys() {
             return this.items_vary();
         }
@@ -11172,16 +11374,22 @@ var $;
         }
         static schema = {};
         static with(schema) {
-            const Entity = class Entity extends this {
+            const $hyoo_crus_dict_with = class $hyoo_crus_dict_with extends this {
+                static toString() {
+                    if (this !== $hyoo_crus_dict_with)
+                        return super.toString();
+                    const params = Object.entries(schema).map(([name, type]) => `${name}: ${type}`);
+                    return '$hyoo_crus_dict.with<{' + params.join(', ') + '}>';
+                }
             };
             for (const Field in schema) {
-                Object.defineProperty(Entity.prototype, Field, {
+                Object.defineProperty($hyoo_crus_dict_with.prototype, Field, {
                     value: function (auto) {
                         return this.dive(Field, schema[Field], auto);
                     }
                 });
             }
-            return Object.assign(Entity, { schema: { ...this.schema, ...schema } });
+            return Object.assign($hyoo_crus_dict_with, { schema: { ...this.schema, ...schema } });
         }
         ;
         [$mol_dev_format_head]() {
@@ -11207,13 +11415,13 @@ var $;
         }
     }
     function $hyoo_crus_dict_to(Value) {
-        return class Dict extends $hyoo_crus_dict {
+        return class $hyoo_crus_dict_to extends $hyoo_crus_dict {
             Value = Value;
             key(key, auto) {
                 return this.dive(key, this.Value, auto);
             }
             static toString() {
-                return this === Dict ? '$hyoo_crus_dict_to<' + Value + '>' : super.toString();
+                return this === $hyoo_crus_dict_to ? '$hyoo_crus_dict_to<' + Value + '>' : super.toString();
             }
         };
     }
@@ -11225,19 +11433,22 @@ var $;
 var $;
 (function ($) {
     class $hyoo_crus_atom_vary extends $hyoo_crus_node {
-        static tag = $hyoo_crus_gist_tag[$hyoo_crus_gist_tag.solo];
-        pick_unit() {
-            return this.units().at(0);
+        static tag = $hyoo_crus_sand_tag[$hyoo_crus_sand_tag.solo];
+        pick_unit(peer) {
+            return this.units_of(peer).at(0);
         }
         vary(next) {
-            let unit_prev = this.pick_unit();
-            let prev = unit_prev ? this.land().gist_decode(unit_prev) : null;
+            return this.vary_of('', next);
+        }
+        vary_of(peer, next) {
+            let unit_prev = this.pick_unit(peer);
+            let prev = unit_prev ? this.land().sand_decode(unit_prev) : null;
             if (next === undefined)
                 return prev;
             if ($mol_compare_deep(prev, next))
                 return next;
             this.land().post('', unit_prev?.head() ?? this.head(), unit_prev?.self() ?? '', next);
-            return this.vary();
+            return this.vary_of(peer);
         }
         ;
         [$mol_dev_format_head]() {
@@ -11245,17 +11456,23 @@ var $;
         }
     }
     __decorate([
-        $mol_mem
-    ], $hyoo_crus_atom_vary.prototype, "vary", null);
+        $mol_mem_key
+    ], $hyoo_crus_atom_vary.prototype, "vary_of", null);
     $.$hyoo_crus_atom_vary = $hyoo_crus_atom_vary;
     class $hyoo_crus_atom_enum_base extends $hyoo_crus_atom_vary {
         static options = [];
     }
     $.$hyoo_crus_atom_enum_base = $hyoo_crus_atom_enum_base;
     function $hyoo_crus_atom_enum(options) {
-        class Narrow extends $hyoo_crus_atom_enum_base {
+        class $hyoo_crus_atom_enum extends $hyoo_crus_atom_enum_base {
             static options = options;
+            static toString() {
+                return this === $hyoo_crus_atom_enum ? '$hyoo_crus_atom_enum<' + options.map($hyoo_crus_vary_cast_str) + '>' : super.toString();
+            }
             val(next) {
+                return this.val_of('', next);
+            }
+            val_of(peer, next) {
                 validate: if (next !== undefined) {
                     for (const option of options) {
                         if ($mol_compare_deep(option, next))
@@ -11263,7 +11480,7 @@ var $;
                     }
                     $mol_fail(new Error(`Wrong value (${$hyoo_crus_vary_cast_str(next)})`));
                 }
-                const val = this.vary(next);
+                const val = this.vary_of(peer, next);
                 for (const option of options) {
                     if ($mol_compare_deep(option, val))
                         return val;
@@ -11272,18 +11489,21 @@ var $;
             }
         }
         __decorate([
-            $mol_mem
-        ], Narrow.prototype, "val", null);
-        return Narrow;
+            $mol_mem_key
+        ], $hyoo_crus_atom_enum.prototype, "val_of", null);
+        return $hyoo_crus_atom_enum;
     }
     $.$hyoo_crus_atom_enum = $hyoo_crus_atom_enum;
     function $hyoo_crus_atom(parse) {
-        class Narrow extends $hyoo_crus_atom_vary {
+        class $hyoo_crus_atom extends $hyoo_crus_atom_vary {
             static parse = parse;
             val(next) {
+                return this.val_of('', next);
+            }
+            val_of(peer, next) {
                 if (next !== undefined)
                     parse(next);
-                const res = this.vary(next);
+                const res = this.vary_of(peer, next);
                 try {
                     return parse(res);
                 }
@@ -11291,8 +11511,11 @@ var $;
                     return null;
                 }
             }
+            static toString() {
+                return this === $hyoo_crus_atom ? '$hyoo_crus_atom<' + this.$.$mol_func_name(parse) + '>' : super.toString();
+            }
         }
-        return Narrow;
+        return $hyoo_crus_atom;
     }
     $.$hyoo_crus_atom = $hyoo_crus_atom;
     class $hyoo_crus_atom_bin extends $hyoo_crus_atom($hyoo_crus_vary_cast_bin) {
@@ -11339,52 +11562,72 @@ var $;
     }
     $.$hyoo_crus_atom_ref_base = $hyoo_crus_atom_ref_base;
     function $hyoo_crus_atom_ref_to(Value) {
-        class Ref extends $hyoo_crus_atom_ref_base {
-            Value = Value;
+        class $hyoo_crus_atom_ref_to extends $hyoo_crus_atom_ref_base {
+            Value = $mol_memo.func(Value);
             static toString() {
-                return '$hyoo_crus_atom_ref_to<' + Value() + '>';
-            }
-            yoke(preset) {
-                const realm = this.realm();
-                const Ref = this.cast($hyoo_crus_atom_ref);
-                const ref = Ref.val();
-                if (ref)
-                    return realm.Land(ref);
-                if (preset === undefined)
-                    return null;
-                const land = realm.land_grab(preset);
-                Ref.val(land.ref());
-                return land;
+                return this === $hyoo_crus_atom_ref_to ? '$hyoo_crus_atom_ref_to<' + Value() + '>' : super.toString();
             }
             remote(next) {
-                const realm = this.realm();
+                return this.remote_of('', next);
+            }
+            remote_of(peer, next) {
                 let ref = next?.ref() ?? next;
-                ref = $hyoo_crus_vary_cast_ref(this.vary(ref));
+                ref = $hyoo_crus_vary_cast_ref(this.vary_of(peer, ref));
                 if (!ref)
                     return null;
-                return realm.Node(ref, Value());
+                return this.$.$hyoo_crus_glob.Node(ref, Value());
+            }
+            ensure(config) {
+                return this.ensure_of('', config);
+            }
+            ensure_of(peer, config) {
+                if (!this.val_of(peer)) {
+                    if (config === null)
+                        this.ensure_here(peer);
+                    else if (config instanceof $hyoo_crus_land)
+                        this.ensure_area(peer, config);
+                    else if (config)
+                        this.ensure_lord(peer, config);
+                    else
+                        return null;
+                }
+                return this.remote_of(peer);
+            }
+            ensure_here(peer) {
+                const idea = $mol_hash_string(this.ref().description);
+                const head = this.land().self_make(idea);
+                const node = this.land().Node(Value()).Item(head);
+                this.remote_of(peer, node);
+            }
+            ensure_area(peer, land) {
+                const idea = $mol_hash_string(this.ref().description);
+                const area = land.area_make(idea);
+                this.val_of(peer, area.ref());
+            }
+            ensure_lord(peer, preset) {
+                const land = this.$.$hyoo_crus_glob.land_grab(preset);
+                this.val_of(peer, land.ref());
             }
             remote_ensure(preset) {
-                this.yoke(preset);
-                return this.remote();
+                return this.ensure(preset);
             }
             local_ensure() {
-                if (this.remote())
-                    return this.remote();
-                const node = this.land().Node(Value()).Item(this.land().self_make($hyoo_crus_area_of(this.head())));
-                return this.remote(node);
+                return this.ensure(null);
             }
         }
         __decorate([
-            $mol_mem
-        ], Ref.prototype, "yoke", null);
+            $mol_mem_key
+        ], $hyoo_crus_atom_ref_to.prototype, "remote_of", null);
         __decorate([
-            $mol_mem
-        ], Ref.prototype, "remote", null);
+            $mol_action
+        ], $hyoo_crus_atom_ref_to.prototype, "ensure_here", null);
         __decorate([
-            $mol_mem
-        ], Ref.prototype, "local_ensure", null);
-        return Ref;
+            $mol_action
+        ], $hyoo_crus_atom_ref_to.prototype, "ensure_area", null);
+        __decorate([
+            $mol_action
+        ], $hyoo_crus_atom_ref_to.prototype, "ensure_lord", null);
+        return $hyoo_crus_atom_ref_to;
     }
     $.$hyoo_crus_atom_ref_to = $hyoo_crus_atom_ref_to;
 })($ || ($ = {}));
@@ -11393,27 +11636,32 @@ var $;
 "use strict";
 var $;
 (function ($) {
-    class $hyoo_crus_home extends $hyoo_crus_dict.with({
+    class $hyoo_crus_entity extends $hyoo_crus_dict.with({
         Title: $hyoo_crus_atom_str,
-        Selection: $hyoo_crus_atom_str,
-        Hall: $hyoo_crus_atom_ref_to(() => $hyoo_crus_dict),
     }) {
-        hall_by(Node, preset) {
-            return this.Hall(null)?.remote_ensure(preset)?.cast(Node) ?? null;
+        title(next) {
+            return this.Title(next)?.val(next) ?? '';
         }
     }
-    $.$hyoo_crus_home = $hyoo_crus_home;
+    __decorate([
+        $mol_mem
+    ], $hyoo_crus_entity.prototype, "title", null);
+    $.$hyoo_crus_entity = $hyoo_crus_entity;
 })($ || ($ = {}));
 
 ;
 "use strict";
 var $;
 (function ($) {
-    class $hyoo_crus_meta extends $hyoo_crus_dict.with({
-        Inflow: $hyoo_crus_list_ref,
+    class $hyoo_crus_home extends $hyoo_crus_entity.with({
+        Selection: $hyoo_crus_atom_str,
+        Hall: $hyoo_crus_atom_ref_to(() => $hyoo_crus_dict),
     }) {
+        hall_by(Node, preset) {
+            return this.Hall(null)?.ensure(preset)?.cast(Node) ?? null;
+        }
     }
-    $.$hyoo_crus_meta = $hyoo_crus_meta;
+    $.$hyoo_crus_home = $hyoo_crus_home;
 })($ || ($ = {}));
 
 ;
@@ -11431,6 +11679,7 @@ var $;
         static rock_save(blob) {
             const hash = this.hash(blob);
             this.rock(hash, blob);
+            this.rock(hash);
             return hash;
         }
         static units_persisted = new WeakSet();
@@ -11688,7 +11937,6 @@ var $;
 (function ($) {
     class $hyoo_crus_mine_idb extends $hyoo_crus_mine {
         static rock(hash, next) {
-            $mol_wire_solid();
             const prev = $mol_mem_cached(() => this.rock(hash));
             if (prev)
                 return prev;
@@ -11725,15 +11973,17 @@ var $;
             const db = await this.db();
             const { Land } = db.read('Land');
             const land_ref = land.description;
-            const land_key = IDBKeyRange.bound([land_ref], [land_ref + '\uFFFF']);
+            const land_key = IDBKeyRange.bound([land_ref, ''], [land_ref, '\uFFFF']);
             const res = await Land.select(land_key);
             const units = res.map(bin => new $hyoo_crus_unit(bin).narrow());
-            for (const unit of units)
+            for (const unit of units) {
                 this.units_persisted.add(unit);
+                $hyoo_crus_unit_trusted.add(unit);
+            }
             return units;
         }
         static async db() {
-            return await this.$.$mol_db('$hyoo_crus', mig => mig.store_make('Rock'), mig => mig.store_make('Land'));
+            return await this.$.$mol_db('$hyoo_crus', mig => mig.store_make('Rock'), mig => mig.store_make('Land'), mig => mig.stores.Land.clear(), mig => mig.stores.Land.clear(), mig => mig.stores.Land.clear());
         }
     }
     __decorate([
@@ -11767,10 +12017,13 @@ var $;
             const lands = {};
             if (land)
                 lands[land] = { faces: new $hyoo_crus_face_map, units: [] };
+            let total = 0;
             const rocks = [];
             const buf = this.asArray();
             for (let offset = 0; offset < this.byteLength;) {
                 const kind = this.uint8(offset);
+                if (!kind)
+                    break;
                 if (kind % 2) {
                     switch (kind) {
                         case $hyoo_crus_part.land: {
@@ -11778,16 +12031,23 @@ var $;
                             faces.total = this.uint32(offset) >> 8;
                             offset += 4;
                             land = $hyoo_crus_ref_decode(new Uint8Array(buf.buffer, buf.byteOffset + offset, 18));
-                            offset += 18;
-                            const len = this.uint16(offset);
-                            offset += 2;
-                            for (let i = 0; i < len; ++i) {
+                            offset += 20;
+                            lands[land] = { faces, units: [] };
+                            continue;
+                        }
+                        case $hyoo_crus_part.face: {
+                            if (!land)
+                                $mol_fail(new Error('Land is undefined'));
+                            const count = this.uint32(offset) >> 8;
+                            offset += 4;
+                            const faces = lands[land].faces;
+                            for (let i = 0; i < count; ++i) {
                                 const peer = $mol_base64_ae_encode(new Uint8Array(buf.buffer, buf.byteOffset + offset, 6));
                                 const time = this.uint48(offset + 6);
                                 faces.time_max(peer, time);
                                 offset += 12;
                             }
-                            lands[land] = { faces, units: [] };
+                            offset = Math.ceil(offset / 8) * 8;
                             continue;
                         }
                         case $hyoo_crus_part.pass: {
@@ -11806,11 +12066,6 @@ var $;
                             lands[land].units.push(unit);
                             continue;
                         }
-                        case $hyoo_crus_part.hash: {
-                            const hash = buf.slice(offset += 4, offset += 24);
-                            rocks.push([hash, null]);
-                            continue;
-                        }
                         case $hyoo_crus_part.rock: {
                             const size = this.uint32(offset) >> 8;
                             if (size === 0) {
@@ -11826,6 +12081,7 @@ var $;
                             }
                             continue;
                         }
+                        case $hyoo_crus_part.root:
                         case $hyoo_crus_part.buck: {
                             offset += 128;
                             continue;
@@ -11836,7 +12092,7 @@ var $;
                 else {
                     if (!land)
                         $mol_fail(new Error('Land is undefined'));
-                    const unit = new $hyoo_crus_gist(buf.slice(offset, offset += $hyoo_crus_unit.size).buffer);
+                    const unit = $hyoo_crus_sand.from(buf.slice(offset, offset += $hyoo_crus_unit.size));
                     lands[land].units ||= [];
                     lands[land].units.push(unit);
                     continue;
@@ -11848,7 +12104,7 @@ var $;
             let size = 0;
             for (const land of Reflect.ownKeys(lands)) {
                 size += 24;
-                size += lands[land].faces.size * 12;
+                size += Math.ceil(lands[land].faces.size * 12 / 8 + .5) * 8;
                 size += lands[land].units.length * $hyoo_crus_unit.size;
             }
             for (const [hash, rock] of rocks) {
@@ -11863,13 +12119,15 @@ var $;
                 const faces = lands[land].faces;
                 pack.uint32(offset, $hyoo_crus_part.land | (faces.total << 8));
                 buff.set($hyoo_crus_ref_encode(land), offset + 4);
-                pack.uint16(offset + 22, faces.size);
                 offset += 24;
+                pack.uint32(offset, $hyoo_crus_part.face | (faces.size << 8));
+                offset += 4;
                 for (const [peer, time] of faces) {
                     buff.set($mol_base64_ae_decode(peer), offset);
                     pack.uint48(offset + 6, time);
                     offset += 12;
                 }
+                offset = Math.ceil(offset / 8) * 8;
                 for (const unit of lands[land].units) {
                     buff.set(unit.asArray(), offset);
                     offset += unit.byteLength;
@@ -11895,10 +12153,10 @@ var $;
 var $;
 (function ($) {
     class $hyoo_crus_yard extends $mol_object {
-        realm() {
+        glob() {
             return null;
         }
-        lands_neonatals = new $mol_wire_set();
+        lands_news = new $mol_wire_set();
         static masters = [];
         master_cursor(next = 0) {
             return next;
@@ -11971,36 +12229,51 @@ var $;
         }
         slaves = new $mol_wire_set();
         sync() {
-            this.sync_neonatals();
+            this.sync_news();
             this.sync_port();
         }
-        sync_neonatals() {
-            for (const port of this.ports()) {
-                for (const land of this.lands_neonatals) {
-                    this.sync_port_land([port, land]);
+        sync_news() {
+            const glob = this.$.$hyoo_crus_glob;
+            const lands = [...this.lands_news].map(ref => glob.Land(ref));
+            try {
+                for (const port of this.masters()) {
+                    for (const land of lands) {
+                        this.sync_port_land([port, land.ref()]);
+                    }
                 }
+                for (const land of lands)
+                    land.saving();
+                this.lands_news.clear();
             }
-            this.lands_neonatals.clear();
+            catch (error) {
+                $mol_fail_log(error);
+            }
         }
         sync_port() {
             for (const port of this.ports())
                 this.sync_port_lands(port);
         }
         sync_port_lands(port) {
-            for (const land of this.port_lands(port)) {
+            for (const land of this.port_lands_active(port)) {
                 this.sync_port_land([port, land]);
             }
         }
         ports() {
+            return [...this.masters(), ...this.slaves];
+        }
+        masters() {
             try {
-                return [this.master(), ...this.slaves].filter($mol_guard_defined);
+                return [this.master()].filter($mol_guard_defined);
             }
             catch (error) {
                 $mol_fail_log(error);
-                return [...this.slaves];
+                return [];
             }
         }
-        port_lands(port) {
+        port_lands_active(port) {
+            return new $mol_wire_set();
+        }
+        port_lands_passive(port) {
             return new $mol_wire_set();
         }
         port_income(port, msg) {
@@ -12013,13 +12286,30 @@ var $;
                 lands: parts.lands,
                 rocks: parts.rocks.length,
             });
+            forget: {
+                if (parts.rocks.length)
+                    break forget;
+                const lands = Object.getOwnPropertySymbols(parts.lands);
+                for (const land of lands) {
+                    if (parts.lands[land].units.length)
+                        break forget;
+                    if (parts.lands[land].faces.size)
+                        break forget;
+                    if (!this.port_lands_active(port).has(land))
+                        break forget;
+                    this.port_lands_active(port).delete(land);
+                    return;
+                }
+            }
             this.face_port_sync(port, parts.lands);
-            this.realm().apply_parts(parts.lands, parts.rocks);
+            this.$.$hyoo_crus_glob.apply_parts(parts.lands, parts.rocks);
         }
         face_port_sync(port, income) {
-            const lands = this.port_lands(port);
+            const actives = this.port_lands_active(port);
+            const passives = this.port_lands_passive(port);
             for (const land of Reflect.ownKeys(income)) {
-                lands.add(land);
+                if (!passives.has(land))
+                    actives.add(land);
                 const faces = income[land].faces;
                 let port_faces = this.face_port_land([port, land]);
                 if (!port_faces)
@@ -12036,10 +12326,31 @@ var $;
             }
         }
         sync_land(land) {
-            for (const port of this.ports()) {
-                this.port_lands(port).add(land);
+            for (const port of this.masters()) {
+                this.port_lands_passive(port).add(land);
+                this.sync_port_land([port, land]);
             }
             this.sync();
+        }
+        forget_land(land) {
+            const faces = new $hyoo_crus_face_map;
+            faces.total = land.faces.total;
+            const pack = $hyoo_crus_pack.make({
+                lands: { [land.ref()]: { faces, units: [] } },
+                rocks: [],
+            }).asArray();
+            for (const port of this.ports()) {
+                if (!this.port_lands_passive(port).has(land.ref()))
+                    continue;
+                this.port_lands_passive(port).delete(land.ref());
+                this.$.$mol_log3_rise({
+                    place: this,
+                    message: 'Forget Land',
+                    port: $mol_key(port),
+                    land: land.ref(),
+                });
+                port.send_bin(pack);
+            }
         }
         sync_port_land([port, land]) {
             try {
@@ -12047,7 +12358,7 @@ var $;
                 const faces = this.face_port_land([port, land]);
                 if (!faces)
                     return;
-                const Land = this.realm().Land(land);
+                const Land = this.$.$hyoo_crus_glob.Land(land);
                 Land.saving();
                 const parts = Land.delta_parts(faces);
                 if (!parts)
@@ -12067,7 +12378,7 @@ var $;
             }
         }
         init_port_land([port, land]) {
-            const Land = this.realm().Land(land);
+            const Land = this.$.$hyoo_crus_glob.Land(land);
             Land.loading();
             this.$.$mol_log3_rise({
                 place: this,
@@ -12085,7 +12396,7 @@ var $;
     }
     __decorate([
         $mol_mem
-    ], $hyoo_crus_yard.prototype, "realm", null);
+    ], $hyoo_crus_yard.prototype, "glob", null);
     __decorate([
         $mol_mem
     ], $hyoo_crus_yard.prototype, "master_cursor", null);
@@ -12106,7 +12417,7 @@ var $;
     ], $hyoo_crus_yard.prototype, "sync", null);
     __decorate([
         $mol_mem
-    ], $hyoo_crus_yard.prototype, "sync_neonatals", null);
+    ], $hyoo_crus_yard.prototype, "sync_news", null);
     __decorate([
         $mol_mem
     ], $hyoo_crus_yard.prototype, "sync_port", null);
@@ -12117,8 +12428,14 @@ var $;
         $mol_mem
     ], $hyoo_crus_yard.prototype, "ports", null);
     __decorate([
+        $mol_mem
+    ], $hyoo_crus_yard.prototype, "masters", null);
+    __decorate([
         $mol_mem_key
-    ], $hyoo_crus_yard.prototype, "port_lands", null);
+    ], $hyoo_crus_yard.prototype, "port_lands_active", null);
+    __decorate([
+        $mol_mem_key
+    ], $hyoo_crus_yard.prototype, "port_lands_passive", null);
     __decorate([
         $mol_action
     ], $hyoo_crus_yard.prototype, "port_income", null);
@@ -12128,6 +12445,9 @@ var $;
     __decorate([
         $mol_mem_key
     ], $hyoo_crus_yard.prototype, "sync_land", null);
+    __decorate([
+        $mol_action
+    ], $hyoo_crus_yard.prototype, "forget_land", null);
     __decorate([
         $mol_mem_key
     ], $hyoo_crus_yard.prototype, "sync_port_land", null);
@@ -12145,8 +12465,9 @@ var $;
 var $;
 (function ($) {
     $.$hyoo_crus_yard.masters = [
-        'https://crus.onrender.com/',
         'https://crus.hyoo.ru/',
+        'https://i-love-crus.ru/',
+        'https://crus.xedth.ru/',
     ];
 })($ || ($ = {}));
 
@@ -12154,17 +12475,22 @@ var $;
 "use strict";
 var $;
 (function ($) {
-    class $hyoo_crus_realm extends $mol_object {
-        lands_touched = new $mol_wire_set();
+    class $hyoo_crus_glob extends $mol_object {
+        static lands_touched = new $mol_wire_set();
+        lands_touched = this.constructor.lands_touched;
+        static yard() {
+            return new this.$.$hyoo_crus_yard;
+        }
         yard() {
-            return this.$.$hyoo_crus_yard.make({
-                realm: $mol_const(this),
-            });
+            return this.$.$hyoo_crus_glob.yard();
+        }
+        static home(Node) {
+            return this.Land(this.$.$hyoo_crus_auth.current().lord()).Data(Node ?? $hyoo_crus_home);
         }
         home() {
-            return this.Land(this.$.$hyoo_crus_auth.current().lord()).home();
+            return this.$.$hyoo_crus_glob.home();
         }
-        king_grab(preset = { '': $hyoo_crus_rank.get }) {
+        static king_grab(preset = { '': $hyoo_crus_rank.get }) {
             const king = this.$.$hyoo_crus_auth.grab();
             const colony = $mol_wire_sync($hyoo_crus_land).make({ $: this.$ });
             colony.auth = $mol_const(king);
@@ -12175,36 +12501,54 @@ var $;
             colony.give(self, $hyoo_crus_rank.law);
             for (const key in preset)
                 colony.give(key ? $hyoo_crus_auth.from(key) : null, preset[key]);
-            this.Land(colony.ref()).apply_unit_trust(colony.delta_unit());
+            this.Land(colony.ref()).apply_unit(colony.delta_unit());
             return king;
         }
-        land_grab(preset = { '': $hyoo_crus_rank.get }) {
+        king_grab(preset = { '': $hyoo_crus_rank.get }) {
+            return this.$.$hyoo_crus_glob.king_grab(preset);
+        }
+        static land_grab(preset = { '': $hyoo_crus_rank.get }) {
             return this.Land(this.king_grab(preset).lord());
         }
-        Land(ref) {
+        land_grab(preset = { '': $hyoo_crus_rank.get }) {
+            return this.$.$hyoo_crus_glob.land_grab(preset);
+        }
+        static Land(ref) {
             this.lands_touched.add(ref);
             return $hyoo_crus_land.make({
-                realm: $mol_const(this),
                 ref: $mol_const(ref),
             });
         }
-        Node(ref, Node) {
+        Land(ref) {
+            return this.$.$hyoo_crus_glob.Land(ref);
+        }
+        static Node(ref, Node) {
             const land = this.Land($hyoo_crus_ref_land(ref));
             return land.Node(Node).Item($hyoo_crus_ref_head(ref));
         }
-        apply_pack(pack) {
+        Node(ref, Node) {
+            return this.$.$hyoo_crus_glob.Node(ref, Node);
+        }
+        static apply_pack(pack) {
             const { lands, rocks } = pack.parts();
             return this.apply_parts(lands, rocks);
         }
-        apply_parts(lands, rocks) {
+        apply_pack(pack) {
+            return this.$.$hyoo_crus_glob.apply_pack(pack);
+        }
+        static apply_parts(lands, rocks) {
             for (const land of Reflect.ownKeys(lands)) {
-                const errors = this.Land(land).apply_unit(lands[land].units).filter(Boolean);
-                for (const error of errors)
+                const errors = this.Land(land).apply_unit(lands[land].units);
+                for (const [i, error] of errors.entries()) {
+                    if (!error)
+                        continue;
                     this.$.$mol_log3_warn({
-                        place: `${this}.apply_pack()`,
+                        place: `${this}.apply_parts()`,
                         message: error,
+                        unit: lands[land].units[i].dump(),
                         hint: 'Send it to developer',
                     });
+                }
             }
             for (const [hash, rock] of rocks) {
                 if (!rock)
@@ -12212,92 +12556,30 @@ var $;
                 this.$.$hyoo_crus_mine.rock_save(rock);
             }
         }
+        apply_parts(lands, rocks) {
+            return this.$.$hyoo_crus_glob.apply_parts(lands, rocks);
+        }
     }
     __decorate([
         $mol_mem
-    ], $hyoo_crus_realm.prototype, "yard", null);
+    ], $hyoo_crus_glob, "yard", null);
     __decorate([
         $mol_action
-    ], $hyoo_crus_realm.prototype, "king_grab", null);
+    ], $hyoo_crus_glob, "king_grab", null);
     __decorate([
         $mol_action
-    ], $hyoo_crus_realm.prototype, "land_grab", null);
+    ], $hyoo_crus_glob, "land_grab", null);
     __decorate([
         $mol_mem_key
-    ], $hyoo_crus_realm.prototype, "Land", null);
+    ], $hyoo_crus_glob, "Land", null);
     __decorate([
         $mol_action
-    ], $hyoo_crus_realm.prototype, "apply_pack", null);
+    ], $hyoo_crus_glob, "apply_pack", null);
     __decorate([
         $mol_action
-    ], $hyoo_crus_realm.prototype, "apply_parts", null);
-    $.$hyoo_crus_realm = $hyoo_crus_realm;
+    ], $hyoo_crus_glob, "apply_parts", null);
+    $.$hyoo_crus_glob = $hyoo_crus_glob;
 })($ || ($ = {}));
-
-;
-	($.$hyoo_crus_status) = class $hyoo_crus_status extends ($.$mol_select) {
-		master_id(id){
-			return "";
-		}
-		Option_logo(id){
-			const obj = new this.$.$mol_avatar();
-			(obj.id) = () => ((this?.master_id(id)));
-			return obj;
-		}
-		master_link(){
-			return "";
-		}
-		Well(){
-			const obj = new this.$.$mol_avatar();
-			(obj.id) = () => ((this?.master_link()));
-			return obj;
-		}
-		Fail(){
-			const obj = new this.$.$mol_icon_sync_off();
-			return obj;
-		}
-		link_content(){
-			return [(this?.Well()), (this?.Fail())];
-		}
-		hint(){
-			return "Sync status";
-		}
-		message(){
-			return (this?.hint());
-		}
-		Link(){
-			const obj = new this.$.$mol_link();
-			(obj.uri) = () => ((this?.master_link()));
-			(obj.sub) = () => ((this?.link_content()));
-			(obj.hint) = () => ((this?.message()));
-			return obj;
-		}
-		minimal_width(){
-			return 40;
-		}
-		minimal_height(){
-			return 40;
-		}
-		realm(){
-			const obj = new this.$.$hyoo_crus_realm();
-			return obj;
-		}
-		Filter(){
-			return null;
-		}
-		option_content(id){
-			return [(this?.Option_logo(id)), (this?.option_label(id))];
-		}
-		trigger_content(){
-			return [(this?.Link())];
-		}
-	};
-	($mol_mem_key(($.$hyoo_crus_status.prototype), "Option_logo"));
-	($mol_mem(($.$hyoo_crus_status.prototype), "Well"));
-	($mol_mem(($.$hyoo_crus_status.prototype), "Fail"));
-	($mol_mem(($.$hyoo_crus_status.prototype), "Link"));
-	($mol_mem(($.$hyoo_crus_status.prototype), "realm"));
-
 
 ;
 "use strict";
@@ -12308,7 +12590,7 @@ var $;
         class $hyoo_crus_status extends $.$hyoo_crus_status {
             message() {
                 try {
-                    this.realm().yard().master();
+                    this.$.$hyoo_crus_glob.yard().master();
                     return this.hint();
                 }
                 catch (error) {
@@ -12320,7 +12602,7 @@ var $;
             }
             link_content() {
                 try {
-                    this.realm().yard().master();
+                    this.$.$hyoo_crus_glob.yard().master();
                     return [this.Well()];
                 }
                 catch (error) {
@@ -12334,7 +12616,7 @@ var $;
                 return this.$.$hyoo_crus_yard.masters;
             }
             master_link() {
-                return this.realm().yard().master_current();
+                return this.$.$hyoo_crus_glob.yard().master_current();
             }
             master_id(uri) {
                 return uri.replace(/^\w+:\/\//, '').replace(/\/$/, '');
@@ -12343,7 +12625,7 @@ var $;
                 return uri.replace(/^\w+:\/\//, '').replace(/\/$/, '');
             }
             value(next) {
-                return this.$.$hyoo_crus_yard.masters[this.realm().yard().master_cursor(next == undefined ? undefined : this.$.$hyoo_crus_yard.masters.indexOf(next))];
+                return this.$.$hyoo_crus_yard.masters[this.$.$hyoo_crus_glob.yard().master_cursor(next == undefined ? undefined : this.$.$hyoo_crus_yard.masters.indexOf(next))];
             }
         }
         __decorate([
@@ -13210,9 +13492,9 @@ var $;
             month_moment(next) {
                 if (next)
                     return next;
-                let moment = $mol_try(() => new $mol_time_moment(this.value_changed().replace(/\D+$/, '')));
+                let moment = $mol_try(() => new $mol_time_moment(this.value_changed().replace(/\D+$/, '')).mask('0000-00'));
                 if (moment instanceof Error || !moment.year)
-                    return new $mol_time_moment;
+                    return new $mol_time_moment().mask('0000-00');
                 if (moment.month === undefined) {
                     moment = moment.merge({ month: 0 });
                 }
@@ -13468,17 +13750,6 @@ var $;
 	($mol_mem(($.$ent_app.prototype), "Todo_list"));
 	($mol_mem(($.$ent_app.prototype), "realm"));
 
-
-;
-"use strict";
-var $;
-(function ($) {
-    class $hyoo_crus_entity extends $hyoo_crus_dict.with({
-        Title: $hyoo_crus_atom_str,
-    }) {
-    }
-    $.$hyoo_crus_entity = $hyoo_crus_entity;
-})($ || ($ = {}));
 
 ;
 "use strict";
