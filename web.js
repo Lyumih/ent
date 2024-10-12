@@ -3629,6 +3629,17 @@ var $;
 "use strict";
 
 ;
+	($.$mol_icon_script_text) = class $mol_icon_script_text extends ($.$mol_icon) {
+		path(){
+			return "M17.8,20C17.4,21.2 16.3,22 15,22H5C3.3,22 2,20.7 2,19V18H5L14.2,18C14.6,19.2 15.7,20 17,20H17.8M19,2C20.7,2 22,3.3 22,5V6H20V5C20,4.4 19.6,4 19,4C18.4,4 18,4.4 18,5V18H17C16.4,18 16,17.6 16,17V16H5V5C5,3.3 6.3,2 8,2H19M8,6V8H15V6H8M8,10V12H14V10H8Z";
+		}
+	};
+
+
+;
+"use strict";
+
+;
 "use strict";
 var $;
 (function ($) {
@@ -8290,13 +8301,13 @@ var $;
     (function ($hyoo_crus_rank) {
         $hyoo_crus_rank[$hyoo_crus_rank["nil"] = 0] = "nil";
         $hyoo_crus_rank[$hyoo_crus_rank["get"] = 1] = "get";
-        $hyoo_crus_rank[$hyoo_crus_rank["add"] = 3] = "add";
+        $hyoo_crus_rank[$hyoo_crus_rank["reg"] = 3] = "reg";
         $hyoo_crus_rank[$hyoo_crus_rank["mod"] = 7] = "mod";
         $hyoo_crus_rank[$hyoo_crus_rank["law"] = 15] = "law";
     })($hyoo_crus_rank = $.$hyoo_crus_rank || ($.$hyoo_crus_rank = {}));
     $.$hyoo_crus_rank_private = {};
     $.$hyoo_crus_rank_public = { '': $hyoo_crus_rank.get };
-    $.$hyoo_crus_rank_lobby = { '': $hyoo_crus_rank.add };
+    $.$hyoo_crus_rank_lobby = { '': $hyoo_crus_rank.mod };
     $.$hyoo_crus_rank_orgy = { '': $hyoo_crus_rank.mod };
 })($ || ($ = {}));
 
@@ -8344,7 +8355,7 @@ var $;
             return this.units().length > 0;
         }
         can_change(lord = this.land().auth().lord()) {
-            return this.land().lord_rank(lord) >= $hyoo_crus_rank.add;
+            return this.land().lord_rank(lord) >= $hyoo_crus_rank.reg;
         }
         last_change() {
             const land = this.land();
@@ -9917,7 +9928,7 @@ var $;
         self_make(idea = Math.floor(Math.random() * 2 ** 48)) {
             const auth = this.auth();
             const rank = this.lord_rank(auth.lord());
-            if (rank === $hyoo_crus_rank.add)
+            if (rank === $hyoo_crus_rank.reg)
                 return auth.peer();
             if (rank === $hyoo_crus_rank.nil)
                 $mol_fail(new Error('Rank too low (nil)'));
@@ -10182,7 +10193,7 @@ var $;
                     pass: next => {
                         const lord = next.lord();
                         const peer = next.peer();
-                        if (!skip_check && this.lord_rank(lord) < $hyoo_crus_rank.add)
+                        if (!skip_check && this.lord_rank(lord) < $hyoo_crus_rank.reg)
                             return 'Need add rank to join';
                         const exists = this.pass.get(peer);
                         if (exists)
@@ -10238,7 +10249,7 @@ var $;
         }
         recheck() {
             for (const [peer, pass] of this.pass) {
-                if (this.lord_rank(pass.lord()) >= $hyoo_crus_rank.add)
+                if (this.lord_rank(pass.lord()) >= $hyoo_crus_rank.reg)
                     continue;
                 this.pass.delete(peer);
                 this.faces.total--;
@@ -11669,6 +11680,9 @@ var $;
 var $;
 (function ($) {
     class $hyoo_crus_mine extends $mol_object {
+        static unit_updates = 0;
+        static unit_appends = 0;
+        static rock_writes = 0;
         static hash(blob) {
             return $mol_crypto_hash(blob);
         }
@@ -12580,9 +12594,6 @@ var $;
 
 ;
 "use strict";
-
-;
-"use strict";
 var $;
 (function ($) {
     var $$;
@@ -12647,6 +12658,9 @@ var $;
 (function ($) {
     $mol_style_attach("hyoo/crus/status/status.view.css", "[hyoo_crus_status_option_row] {\n\tpadding: var(--mol_gap_text);\n}\n\n[hyoo_crus_status_well] {\n\tcolor: var(--mol_theme_current);\n}\n\n[hyoo_crus_status_fail] {\n\tcolor: var(--mol_theme_focus);\n}\n\n[hyoo_crus_status][mol_view_error=\"Promise\"] {\n\tanimation: hyoo_crus_status_wait 1s linear infinite;\n}\n\n@keyframes hyoo_crus_status_wait {\n\tfrom {\n\t\topacity: 1;\n\t}\n\tto {\n\t\topacity: .5;\n\t}\n}\n");
 })($ || ($ = {}));
+
+;
+"use strict";
 
 ;
 	($.$mol_labeler) = class $mol_labeler extends ($.$mol_list) {
