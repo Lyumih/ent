@@ -4330,7 +4330,7 @@ declare namespace $ {
             [x: symbol]: () => any[];
             remote_list(next?: Vals): Vals;
             remote_add(item: Vals[number]): void;
-            make(config?: null | $hyoo_crus_rank_preset | $hyoo_crus_land): Vals[number];
+            make(config?: null | number | $hyoo_crus_rank_preset | $hyoo_crus_land): Vals[number];
             remote_make(config: $hyoo_crus_rank_preset): Vals[number];
             local_make(idea?: number): Vals[number];
             items(next?: readonly ((symbol & {
@@ -6343,7 +6343,7 @@ declare namespace $ {
             [x: symbol]: () => any[];
             remote_list(next?: readonly $ent_app_todo[] | undefined): readonly $ent_app_todo[];
             remote_add(item: $ent_app_todo): void;
-            make(config?: null | $hyoo_crus_rank_preset | $hyoo_crus_land): $ent_app_todo;
+            make(config?: null | number | $hyoo_crus_rank_preset | $hyoo_crus_land): $ent_app_todo;
             remote_make(config: $hyoo_crus_rank_preset): $ent_app_todo;
             local_make(idea?: number): $ent_app_todo;
             items(next?: readonly ((symbol & {
@@ -6396,7 +6396,7 @@ declare namespace $ {
                     [x: symbol]: () => any[];
                     remote_list(next?: readonly $ent_app_todo[] | undefined): readonly $ent_app_todo[];
                     remote_add(item: $ent_app_todo): void;
-                    make(config?: null | $hyoo_crus_rank_preset | $hyoo_crus_land): $ent_app_todo;
+                    make(config?: null | number | $hyoo_crus_rank_preset | $hyoo_crus_land): $ent_app_todo;
                     remote_make(config: $hyoo_crus_rank_preset): $ent_app_todo;
                     local_make(idea?: number): $ent_app_todo;
                     items(next?: readonly ((symbol & {
