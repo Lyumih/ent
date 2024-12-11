@@ -247,6 +247,7 @@
     "$hyoo_crus_mine_pg",
     "$hyoo_crus_mine_fs",
     "$mol_bus",
+    "$hyoo_crus_log",
     "$mol_wire_race",
     "$mol_labeler",
     "$mol_button_major",
